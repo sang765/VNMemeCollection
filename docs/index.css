@@ -180,3 +180,43 @@ h1 {
         margin: 10% auto;
     }
 }
+
+/* Style cho search input */
+#search-input {
+    padding: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 20px;
+    display: block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+/* Style khi không có items */
+.no-items {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Video icon */
+.video-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 30px;
+    opacity: 0.8;
+}
+
+/* Hiệu ứng loading */
+.media-item img {
+    transition: opacity 0.3s;
+}
+
+.media-item img[src*="data:image/svg+xml"] {
+    opacity: 0.7;
+}
