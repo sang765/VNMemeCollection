@@ -220,3 +220,59 @@ h1 {
 .media-item img[src*="data:image/svg+xml"] {
     opacity: 0.7;
 }
+
+/* Thêm các style mới */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+.error {
+    text-align: center;
+    padding: 20px;
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+.video-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.video-container video {
+    width: 100%;
+    height: auto;
+    max-height: 70vh;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+    }
+}
+
+/* Animation cho loading */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
