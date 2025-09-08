@@ -5,65 +5,74 @@ let mediaFiles = {
 };
 
 let currentPreviewItem = null;
+const REPO_OWNER = 'sang765';
+const REPO_NAME = 'VNMemeCollection';
+const BASE_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main`;
 
 // Hàm khởi tạo
 document.addEventListener('DOMContentLoaded', function() {
+    // Hiển thị thông báo loading
+    document.getElementById('image-content').innerHTML = '<p class="loading">Đang tải danh sách ảnh...</p>';
+    document.getElementById('video-content').innerHTML = '<p class="loading">Đang tải danh sách video...</p>';
+    
     // Lấy danh sách ảnh và video
     fetchMediaFiles();
     
     // Thiết lập sự kiện cho modal
     setupModalEvents();
-    
-    // Mở rộng danh mục mặc định
-    setTimeout(() => {
-        toggleCategory('image');
-        toggleCategory('video');
-    }, 100);
 });
 
-// Lấy danh sách media files
+// Lấy danh sách media files từ GitHub API
 async function fetchMediaFiles() {
     try {
-        // Trong thực tế, bạn sẽ fetch từ server API
-        // Đoạn code này giả lập dữ liệu cho demo
-        mediaFiles.images = await getImageList();
-        mediaFiles.videos = await getVideoList();
+        // Lấy danh sách ảnh
+        const images = await getFilesFromGitHub('images');
+        mediaFiles.images = images;
+        document.getElementById('image-count').textContent = images.length;
+        displayMediaItems('image', images);
         
-        // Hiển thị số lượng
-        document.getElementById('image-count').textContent = mediaFiles.images.length;
-        document.getElementById('video-count').textContent = mediaFiles.videos.length;
+        // Lấy danh sách video
+        const videos = await getFilesFromGitHub('videos');
+        mediaFiles.videos = videos;
+        document.getElementById('video-count').textContent = videos.length;
+        displayMediaItems('video', videos);
         
-        // Hiển thị media items
-        displayMediaItems('image', mediaFiles.images);
-        displayMediaItems('video', mediaFiles.videos);
     } catch (error) {
         console.error('Lỗi khi tải danh sách media:', error);
-        document.getElementById('image-content').innerHTML = '<p>Không thể tải danh sách ảnh</p>';
-        document.getElementById('video-content').innerHTML = '<p>Không thể tải danh sách video</p>';
+        document.getElementById('image-content').innerHTML = '<p class="error">Không thể tải danh sách ảnh</p>';
+        document.getElementById('video-content').innerHTML = '<p class="error">Không thể tải danh sách video</p>';
     }
 }
 
-// Giả lập API lấy danh sách ảnh
-async function getImageList() {
-    // Trong thực tế, bạn sẽ gọi API từ server
-    // Ở đây giả lập trả về danh sách ảnh
-    return [
-        'meme1.jpg',
-        'meme2.png', 
-        'meme3.gif',
-        'meme4.jpg',
-        'meme5.png'
-    ];
-}
-
-// Giả lập API lấy danh sách video
-async function getVideoList() {
-    // Trong thực tế, bạn sẽ gọi API từ server
-    // Ở đây giả lập trả về danh sách video
-    return [
-        'video1.mp4',
-        'video2.webm'
-    ];
+// Lấy danh sách file từ GitHub API
+async function getFilesFromGitHub(folder) {
+    try {
+        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${folder}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Lọc ra chỉ các file (loại bỏ thư mục con)
+        const files = data.filter(item => item.type === 'file')
+                         .map(item => item.name)
+                         .filter(name => {
+                             // Lọc theo định dạng file
+                             if (folder === 'images') {
+                                 return /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+                             } else if (folder === 'videos') {
+                                 return /\.(mp4|webm|mov|avi|mkv)$/i.test(name);
+                             }
+                             return false;
+                         });
+        
+        return files;
+    } catch (error) {
+        console.error(`Lỗi khi lấy danh sách file từ ${folder}:`, error);
+        return [];
+    }
 }
 
 // Hiển thị media items
@@ -92,7 +101,7 @@ function createMediaElement(type, filename) {
     
     if (type === 'image') {
         const img = document.createElement('img');
-        img.src = `images/${filename}`;
+        img.src = `${BASE_URL}/images/${filename}`;
         img.alt = filename;
         img.loading = 'lazy';
         img.onerror = function() {
@@ -103,15 +112,19 @@ function createMediaElement(type, filename) {
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.className = 'video-thumbnail';
         
-        // Tạo thumbnail cho video (giả định có thumbnail cùng tên với đuôi jpg)
-        const thumbnailName = filename.split('.')[0] + '.jpg';
+        // Thử tìm thumbnail (cùng tên với đuôi jpg/png)
+        const thumbnailName = filename.split('.')[0];
         const img = document.createElement('img');
-        img.src = `videos/${thumbnailName}`;
+        img.src = `${BASE_URL}/videos/${thumbnailName}.jpg`;
         img.alt = filename;
         img.onerror = function() {
-            // Nếu không có thumbnail, hiển thị background màu đen với icon play
-            this.style.display = 'none';
-            thumbnailDiv.innerHTML += '<div class="video-icon">▶</div>';
+            // Nếu không có thumbnail jpg, thử png
+            this.src = `${BASE_URL}/videos/${thumbnailName}.png`;
+            this.onerror = function() {
+                // Nếu không có thumbnail nào, hiển thị placeholder
+                this.style.display = 'none';
+                thumbnailDiv.innerHTML += '<div class="video-icon">▶</div>';
+            };
         };
         
         thumbnailDiv.appendChild(img);
@@ -132,19 +145,23 @@ function openPreview(type, filename) {
     
     if (type === 'image') {
         const img = document.createElement('img');
-        img.src = `images/${filename}`;
+        img.src = `${BASE_URL}/images/${filename}`;
         img.alt = filename;
         container.appendChild(img);
     } else {
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'video-container';
+        
         const video = document.createElement('video');
-        video.src = `videos/${filename}`;
+        video.src = `${BASE_URL}/videos/${filename}`;
         video.controls = true;
-        container.appendChild(video);
+        video.autoplay = true;
+        
+        videoContainer.appendChild(video);
+        container.appendChild(videoContainer);
     }
     
     modal.style.display = 'block';
-    
-    // Thêm sự kiện đóng bằng phím ESC
     document.addEventListener('keydown', handleKeyPress);
 }
 
@@ -159,7 +176,6 @@ function closePreview() {
         video.pause();
     }
     
-    // Xóa sự kiện phím ESC
     document.removeEventListener('keydown', handleKeyPress);
 }
 
@@ -177,10 +193,8 @@ function setupModalEvents() {
     const downloadBtn = document.getElementById('download-btn');
     const copyUrlBtn = document.getElementById('copy-url-btn');
     
-    // Đóng khi click nút X
     closeBtn.addEventListener('click', closePreview);
     
-    // Đóng khi click bên ngoài
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closePreview();
@@ -190,11 +204,11 @@ function setupModalEvents() {
     // Xử lý nút tải xuống
     downloadBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
-            const link = document.createElement('a');
             const url = currentPreviewItem.type === 'image' 
-                ? `images/${currentPreviewItem.filename}`
-                : `videos/${currentPreviewItem.filename}`;
+                ? `${BASE_URL}/images/${currentPreviewItem.filename}`
+                : `${BASE_URL}/videos/${currentPreviewItem.filename}`;
             
+            const link = document.createElement('a');
             link.href = url;
             link.download = currentPreviewItem.filename;
             document.body.appendChild(link);
@@ -209,8 +223,8 @@ function setupModalEvents() {
     copyUrlBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
             const url = currentPreviewItem.type === 'image' 
-                ? `${window.location.origin}/images/${currentPreviewItem.filename}`
-                : `${window.location.origin}/videos/${currentPreviewItem.filename}`;
+                ? `${BASE_URL}/images/${currentPreviewItem.filename}`
+                : `${BASE_URL}/videos/${currentPreviewItem.filename}`;
             
             navigator.clipboard.writeText(url)
                 .then(() => {
@@ -220,7 +234,7 @@ function setupModalEvents() {
                 .catch(err => {
                     console.error('Lỗi khi sao chép URL: ', err);
                     
-                    // Fallback cho trình duyệt không hỗ tr� clipboard API
+                    // Fallback cho trình duyệt không hỗ trợ clipboard API
                     const tempTextArea = document.createElement('textarea');
                     tempTextArea.value = url;
                     document.body.appendChild(tempTextArea);
@@ -244,7 +258,7 @@ function toggleCategory(type) {
     const content = document.getElementById(`${type}-content`);
     const icon = document.querySelector(`#${type}-category .toggle-icon`);
     
-    if (content.style.display === 'none') {
+    if (content.style.display === 'none' || !content.style.display) {
         content.style.display = 'grid';
         icon.textContent = '▼';
     } else {
@@ -294,3 +308,9 @@ function filterMediaItems(searchTerm) {
 
 // Khởi tạo tìm kiếm
 setupSearch();
+
+// Tự động mở rộng danh mục khi load
+setTimeout(() => {
+    toggleCategory('image');
+    toggleCategory('video');
+}, 100);
