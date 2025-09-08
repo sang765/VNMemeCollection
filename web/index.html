@@ -1,2 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bộ sưu tập Meme</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <header>
+        <h1>Bộ sưu tập Meme</h1>
+    </header>
+    
+    <main>
+        <div class="categories">
+            <div class="category" id="image-category">
+                <h2 class="category-header" onclick="toggleCategory('image')">
+                    Ảnh (<span id="image-count">0</span>)
+                    <span class="toggle-icon">▼</span>
+                </h2>
+                <div class="category-content" id="image-content"></div>
+            </div>
+            
+            <div class="category" id="video-category">
+                <h2 class="category-header" onclick="toggleCategory('video')">
+                    Video (<span id="video-count">0</span>)
+                    <span class="toggle-icon">▼</span>
+                </h2>
+                <div class="category-content" id="video-content"></div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Popup Preview -->
+    <div id="preview-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="preview-container"></div>
+            <div class="action-buttons">
+                <button id="download-btn">Tải xuống</button>
+                <button id="copy-url-btn">Sao chép URL</button>
+            </div>
+        </div>
+    </div>
 
-
+    <script src="main.js"></script>
+</body>
+</html>
