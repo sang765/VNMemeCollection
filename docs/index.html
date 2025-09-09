@@ -3,20 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bộ sưu tập Meme</title>
+    <meta name="description" content="Bộ sưu tập meme Việt Nam - Tổng hợp các meme hình ảnh và video hài hước">
+    <title>SegEyy Meme Collection</title>
     <link rel="stylesheet" href="index.css">
-    <script src="main.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤣</text></svg>">
 </head>
 <body>
     <header>
-        <h1>Bộ sưu tập Meme</h1>
+        <h1>SegEyy Meme Collection</h1>
+        <div class="header-controls">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Tìm kiếm meme...">
+                <button id="clear-search" style="display: none;">×</button>
+            </div>
+            <button id="toggle-dark-mode">🌙</button>
+            <button id="refresh-btn">🔄</button>
+        </div>
     </header>
     
     <main>
+        <div class="stats-bar">
+            <span>Tổng số: <span id="total-count">0</span> meme</span>
+            <span id="filter-stats" style="display: none;"></span>
+        </div>
+        
         <div class="categories">
             <div class="category" id="image-category">
                 <h2 class="category-header" onclick="toggleCategory('image')">
-                    Ảnh (<span id="image-count">0</span>)
+                    <span class="category-title">Ảnh</span>
+                    <span class="category-count">(<span id="image-count">0</span>)</span>
                     <span class="toggle-icon">▼</span>
                 </h2>
                 <div class="category-content" id="image-content"></div>
@@ -24,11 +39,17 @@
             
             <div class="category" id="video-category">
                 <h2 class="category-header" onclick="toggleCategory('video')">
-                    Video (<span id="video-count">0</span>)
+                    <span class="category-title">Video</span>
+                    <span class="category-count">(<span id="video-count">0</span>)</span>
                     <span class="toggle-icon">▼</span>
                 </h2>
                 <div class="category-content" id="video-content"></div>
             </div>
+        </div>
+        
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+            <p>Đang tải dữ liệu...</p>
         </div>
     </main>
     
@@ -36,13 +57,27 @@
     <div id="preview-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
+            <div class="preview-header">
+                <h3 id="preview-filename"></h3>
+                <span class="file-type-badge" id="preview-filetype"></span>
+            </div>
             <div id="preview-container"></div>
             <div class="action-buttons">
-                <button id="download-btn">Tải xuống</button>
-                <button id="copy-url-btn">Sao chép URL</button>
+                <button id="download-btn" class="btn-primary">
+                    <span class="btn-icon">📥</span> Tải xuống
+                </button>
+                <button id="copy-url-btn" class="btn-secondary">
+                    <span class="btn-icon">🔗</span> Sao chép URL
+                </button>
+                <button id="prev-btn" class="btn-nav">←</button>
+                <button id="next-btn" class="btn-nav">→</button>
             </div>
         </div>
     </div>
+
+    <footer>
+        <p>Powered by <a href="https://github.com/sang765/VNMemeCollection" target="_blank">VNMemeCollection</a> • <span id="last-updated"></span></p>
+    </footer>
 
     <script src="main.js"></script>
 </body>
