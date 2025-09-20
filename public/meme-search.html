@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VNMemeCollection — Tìm Meme</title>
+  <link rel="stylesheet" href="/css/meme_search.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>VNMemeCollection — Tìm Meme</h1>
+      <div class="theme-toggle">
+        <label>
+          <input id="themeSwitch" type="checkbox"> Dark
+        </label>
+      </div>
+    </header>
+
+    <section class="search-controls">
+      <input id="searchInput" placeholder="Tìm meme... (ví dụ: cat, reaction, funny)" autocomplete="off">
+      <select id="providerSelect">
+        <option value="both">Cả hai</option>
+        <option value="tenor">Tenor</option>
+        <option value="giphy">Giphy</option>
+      </select>
+      <button id="searchBtn">Tìm kiếm</button>
+    </section>
+
+    <section id="grid" class="meme-grid" aria-live="polite"></section>
+
+    <div id="loading" class="loading">Đang tải...</div>
+    <div id="loadMoreWrap" class="load-more"><button id="loadMoreBtn">Tải thêm</button></div>
+
+    <div id="lightbox" class="lightbox" aria-hidden="true">
+      <div class="lightbox-inner">
+        <header class="lightbox-head">
+          <h3 id="lightboxTitle"></h3>
+          <div class="lightbox-actions">
+            <button id="copyBtn">Copy link</button>
+            <button id="downloadBtn">Download</button>
+            <button id="openBtn">Open</button>
+            <button id="closeBtn">Close</button>
+          </div>
+        </header>
+        <div class="lightbox-body" id="lightboxBody"></div>
+      </div>
+    </div>
+
+    <footer class="footer">Powered by Tenor & Giphy — Make sure to set TENOR_API_KEY and GIPHY_API_KEY in server environment.</footer>
+  </main>
+
+  <script src="/js/meme_search.js" defer></script>
+</body>
+</html>
