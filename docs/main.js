@@ -16,9 +16,9 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 // Biến cho authentication
 let accessToken = null;
 let userInfo = null;
-const GITHUB_CLIENT_ID = 'your_github_client_id_here'; // Cần thay thế bằng client ID thật
+const GITHUB_CLIENT_ID = 'Ov23lifNyQskQEtYjjAK'; // Cần thay thế bằng client ID thật
 const GITHUB_REDIRECT_URI = window.location.origin + window.location.pathname;
-const AUTH_STORAGE_KEY = 'githubAuth';
+const AUTH_STORAGE_KEY = '33370ba113a259b36a60b7aeb2f2774fc6ddeb06';
 
 // Hàm khởi tạo
 document.addEventListener('DOMContentLoaded', function() {
