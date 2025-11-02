@@ -13,6 +13,13 @@ const BASE_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/m
 const CACHE_KEY = 'memeCollectionCache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
+// Biến cho authentication
+let accessToken = null;
+let userInfo = null;
+const GITHUB_CLIENT_ID = 'your_github_client_id_here'; // Cần thay thế bằng client ID thật
+const GITHUB_REDIRECT_URI = window.location.origin + window.location.pathname;
+const AUTH_STORAGE_KEY = 'githubAuth';
+
 // Hàm khởi tạo
 document.addEventListener('DOMContentLoaded', function() {
     initApp();
@@ -26,18 +33,22 @@ function initApp() {
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeButton(savedTheme);
     }
-    
+
+    // Khởi tạo authentication
+    initAuth();
+
     // Hiển thị thông báo loading
     showLoadingOverlay();
     document.getElementById('image-content').innerHTML = '<p class="loading">Đang tải danh sách ảnh...</p>';
     document.getElementById('video-content').innerHTML = '<p class="loading">Đang tải danh sách video...</p>';
-    
+
     // Thiết lập sự kiện
     setupEventListeners();
-    
+    setupAuthEventListeners();
+
     // Lấy danh sách ảnh và video
     loadMediaFiles();
-    
+
     // Hiển thị thời gian cập nhật cuối
     document.getElementById('last-updated').textContent = new Date().toLocaleDateString('vi-VN');
 }
@@ -547,6 +558,370 @@ function hideLoadingOverlay() {
     document.getElementById('loading-overlay').style.display = 'none';
 }
 
+// ==================== AUTHENTICATION FUNCTIONS ====================
+
+// Khởi tạo authentication
+function initAuth() {
+    // Kiểm tra URL parameters cho OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+
+    if (code) {
+        // Xử lý OAuth callback
+        handleAuthCallback(code, state);
+        return;
+    }
+
+    // Kiểm tra token đã lưu
+    const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (savedAuth) {
+        try {
+            const authData = JSON.parse(savedAuth);
+            if (authData.token && authData.user) {
+                accessToken = authData.token;
+                userInfo = authData.user;
+                updateAuthUI();
+                return;
+            }
+        } catch (e) {
+            console.error('Lỗi khi parse auth data:', e);
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+    }
+
+    // Hiển thị nút đăng nhập
+    updateAuthUI();
+}
+
+// Xử lý OAuth callback
+async function handleAuthCallback(code, state) {
+    try {
+        showLoadingOverlay();
+
+        // Đổi code lấy access token
+        const tokenResponse = await fetch('https://cors-anywhere.herokuapp.com/https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                client_id: GITHUB_CLIENT_ID,
+                client_secret: 'your_github_client_secret_here', // Cần thay thế bằng client secret thật
+                code: code,
+                redirect_uri: GITHUB_REDIRECT_URI
+            })
+        });
+
+        if (!tokenResponse.ok) {
+            throw new Error('Không thể lấy access token');
+        }
+
+        const tokenData = await tokenResponse.json();
+
+        if (tokenData.error) {
+            throw new Error(tokenData.error_description || tokenData.error);
+        }
+
+        accessToken = tokenData.access_token;
+
+        // Lấy thông tin user
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `token ${accessToken}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!userResponse.ok) {
+            throw new Error('Không thể lấy thông tin user');
+        }
+
+        userInfo = await userResponse.json();
+
+        // Lưu vào localStorage
+        const authData = {
+            token: accessToken,
+            user: userInfo,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+
+        // Xóa code từ URL
+        const url = new URL(window.location);
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        window.history.replaceState({}, document.title, url.pathname);
+
+        updateAuthUI();
+        hideLoadingOverlay();
+        showToast('Đăng nhập thành công!', 'success');
+
+    } catch (error) {
+        console.error('Lỗi khi xử lý authentication:', error);
+        hideLoadingOverlay();
+        showToast('Lỗi đăng nhập: ' + error.message, 'error');
+
+        // Xóa code từ URL nếu có lỗi
+        const url = new URL(window.location);
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        window.history.replaceState({}, document.title, url.pathname);
+    }
+}
+
+// Đăng nhập GitHub
+function loginWithGitHub() {
+    const state = Math.random().toString(36).substring(2, 15);
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(GITHUB_REDIRECT_URI)}&scope=repo&state=${state}`;
+
+    // Lưu state để verify sau
+    sessionStorage.setItem('oauth_state', state);
+
+    window.location.href = authUrl;
+}
+
+// Đăng xuất
+function logout() {
+    accessToken = null;
+    userInfo = null;
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    updateAuthUI();
+    showToast('Đã đăng xuất', 'success');
+}
+
+// Cập nhật UI authentication
+function updateAuthUI() {
+    const loginBtn = document.getElementById('login-btn');
+    const uploadBtn = document.getElementById('upload-btn');
+    const userInfoEl = document.getElementById('user-info');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (accessToken && userInfo) {
+        loginBtn.style.display = 'none';
+        uploadBtn.style.display = 'inline-block';
+        userInfoEl.style.display = 'inline-block';
+        userInfoEl.textContent = `Xin chào, ${userInfo.login}!`;
+        logoutBtn.style.display = 'inline-block';
+    } else {
+        loginBtn.style.display = 'inline-block';
+        uploadBtn.style.display = 'none';
+        userInfoEl.style.display = 'none';
+        logoutBtn.style.display = 'none';
+    }
+}
+
+// Thiết lập event listeners cho authentication
+function setupAuthEventListeners() {
+    document.getElementById('login-btn').addEventListener('click', loginWithGitHub);
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('upload-btn').addEventListener('click', showUploadModal);
+
+    // Upload modal events
+    document.getElementById('upload-close').addEventListener('click', hideUploadModal);
+    document.getElementById('cancel-upload').addEventListener('click', hideUploadModal);
+    document.getElementById('upload-form').addEventListener('submit', handleUpload);
+
+    // Đóng modal khi click outside
+    document.getElementById('upload-modal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('upload-modal')) {
+            hideUploadModal();
+        }
+    });
+}
+
+// ==================== UPLOAD FUNCTIONS ====================
+
+// Hiển thị upload modal
+function showUploadModal() {
+    document.getElementById('upload-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+// Ẩn upload modal
+function hideUploadModal() {
+    document.getElementById('upload-modal').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('upload-form').reset();
+    document.querySelector('.upload-progress').style.display = 'none';
+}
+
+// Xử lý upload
+async function handleUpload(e) {
+    e.preventDefault();
+
+    if (!accessToken) {
+        showToast('Vui lòng đăng nhập trước', 'error');
+        return;
+    }
+
+    const fileInput = document.getElementById('file-input');
+    const fileType = document.getElementById('file-type').value;
+    const customFilename = document.getElementById('custom-filename').value.trim();
+
+    if (!fileInput.files[0]) {
+        showToast('Vui lòng chọn file', 'error');
+        return;
+    }
+
+    if (!fileType) {
+        showToast('Vui lòng chọn loại file', 'error');
+        return;
+    }
+
+    const file = fileInput.files[0];
+
+    // Validate file type
+    if (!validateFileType(file, fileType)) {
+        showToast('Loại file không hợp lệ', 'error');
+        return;
+    }
+
+    // Validate file size (max 100MB for GitHub)
+    if (file.size > 100 * 1024 * 1024) {
+        showToast('File quá lớn (tối đa 100MB)', 'error');
+        return;
+    }
+
+    try {
+        showUploadProgress();
+
+        // Tạo filename
+        let filename = customFilename || file.name;
+        if (!filename.includes('.')) {
+            // Thêm extension nếu chưa có
+            const extension = file.name.split('.').pop();
+            filename += '.' + extension;
+        }
+
+        // Đảm bảo filename an toàn
+        filename = sanitizeFilename(filename);
+
+        // Upload file
+        await uploadFileToGitHub(file, filename, fileType);
+
+        hideUploadModal();
+        showToast('Upload thành công!', 'success');
+
+        // Refresh danh sách files
+        localStorage.removeItem(CACHE_KEY);
+        loadMediaFiles();
+
+    } catch (error) {
+        console.error('Lỗi upload:', error);
+        showToast('Lỗi upload: ' + error.message, 'error');
+    } finally {
+        hideUploadProgress();
+    }
+}
+
+// Validate file type
+function validateFileType(file, fileType) {
+    const imageTypes = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const videoTypes = /\.(mp4|webm|mov|avi|mkv|wmv|flv)$/i;
+
+    if (fileType === 'image') {
+        return imageTypes.test(file.name);
+    } else if (fileType === 'video') {
+        return videoTypes.test(file.name);
+    }
+
+    return false;
+}
+
+// Sanitize filename
+function sanitizeFilename(filename) {
+    return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+// Upload file to GitHub
+async function uploadFileToGitHub(file, filename, fileType) {
+    const folder = fileType === 'image' ? 'images' : 'videos';
+    const path = `${folder}/${filename}`;
+
+    // Convert file to base64
+    const base64Content = await fileToBase64(file);
+
+    // Kiểm tra file đã tồn tại chưa
+    try {
+        const existingFile = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
+            headers: {
+                'Authorization': `token ${accessToken}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        let sha = null;
+        if (existingFile.ok) {
+            const existingData = await existingFile.json();
+            sha = existingData.sha;
+        }
+
+        // Upload file
+        const uploadResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${accessToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `Upload ${fileType}: ${filename}`,
+                content: base64Content,
+                sha: sha // null for new file, sha for update
+            })
+        });
+
+        if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.message || 'Upload failed');
+        }
+
+        return await uploadResponse.json();
+
+    } catch (error) {
+        if (error.message.includes('Bad credentials')) {
+            // Token expired, logout
+            logout();
+            throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        }
+        throw error;
+    }
+}
+
+// Convert file to base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            // Remove data URL prefix (data:mime/type;base64,)
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Hiển thị progress
+function showUploadProgress() {
+    const progressEl = document.querySelector('.upload-progress');
+    progressEl.style.display = 'block';
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-text').textContent = 'Đang tải lên...';
+}
+
+// Ẩn progress
+function hideUploadProgress() {
+    document.querySelector('.upload-progress').style.display = 'none';
+}
+
+// Update progress
+function updateUploadProgress(percent) {
+    document.getElementById('progress-fill').style.width = percent + '%';
+    document.getElementById('progress-text').textContent = `Đang tải lên... ${percent}%`;
+}
 // Xử lý lỗi toàn cục
 window.addEventListener('error', function(e) {
     console.error('Lỗi toàn cục:', e.error);

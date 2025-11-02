@@ -16,6 +16,12 @@
                 <input type="text" id="search-input" placeholder="Tìm kiếm meme...">
                 <button id="clear-search" style="display: none;">×</button>
             </div>
+            <div class="auth-controls">
+                <button id="login-btn" style="display: none;">Đăng nhập GitHub</button>
+                <button id="upload-btn" style="display: none;">📤 Upload Meme</button>
+                <span id="user-info" style="display: none;"></span>
+                <button id="logout-btn" style="display: none;">Đăng xuất</button>
+            </div>
             <button id="toggle-dark-mode">🌙</button>
             <button id="refresh-btn">🔄</button>
         </div>
@@ -67,6 +73,47 @@
                     <span class="btn-icon">📥</span> Tải xuống
                 </button>
                 <button id="copy-url-btn" class="btn-secondary">
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="upload-close">&times;</span>
+            <h3>Upload Meme</h3>
+            <form id="upload-form">
+                <div class="form-group">
+                    <label for="file-input">Chọn file:</label>
+                    <input type="file" id="file-input" accept="image/*,video/*" required>
+                    <small>Chỉ chấp nhận ảnh (jpg, png, gif, webp) và video (mp4, webm, mov, avi, mkv, wmv, flv)</small>
+                </div>
+                <div class="form-group">
+                    <label for="file-type">Loại file:</label>
+                    <select id="file-type" required>
+                        <option value="">Chọn loại</option>
+                        <option value="image">Ảnh</option>
+                        <option value="video">Video</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="custom-filename">Tên file tùy chỉnh (tùy chọn):</label>
+                    <input type="text" id="custom-filename" placeholder="Để trống để dùng tên gốc">
+                    <small>Không cần nhập đuôi file</small>
+                </div>
+                <div class="upload-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Đang tải lên...</p>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">📤 Upload</button>
+                    <button type="button" class="btn-secondary" id="cancel-upload">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.5/base64.min.js"></script>
+</body>
+</html>
                     <span class="btn-icon">🔗</span> Sao chép URL
                 </button>
                 <button id="prev-btn" class="btn-nav">←</button>

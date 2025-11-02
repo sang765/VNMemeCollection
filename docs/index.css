@@ -410,6 +410,129 @@ h1 {
     transform: none;
 }
 
+.auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#user-info {
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+#login-btn, #upload-btn, #logout-btn {
+    padding: 8px 15px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+#login-btn:hover, #upload-btn:hover, #logout-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+#logout-btn {
+    background-color: #dc3545;
+}
+
+#logout-btn:hover {
+    background-color: #c82333;
+}
+
+/* Upload Modal Styles */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.upload-progress {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.form-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
 footer {
     margin-top: 40px;
     text-align: center;
