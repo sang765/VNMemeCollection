@@ -18,7 +18,7 @@ let accessToken = null;
 let userInfo = null;
 const GITHUB_CLIENT_ID = 'Ov23lifNyQskQEtYjjAK'; // Cần thay thế bằng client ID thật
 const GITHUB_REDIRECT_URI = window.location.origin + window.location.pathname;
-const AUTH_STORAGE_KEY = '33370ba113a259b36a60b7aeb2f2774fc6ddeb06';
+const AUTH_STORAGE_KEY = 'vn_meme_auth_token'; // Đổi tên key để tránh confuse
 
 // Hàm khởi tạo
 document.addEventListener('DOMContentLoaded', function() {
@@ -453,6 +453,8 @@ function filterMediaItems(searchTerm) {
     currentFilteredItems = [];
     
     let visibleCount = 0;
+    let visibleImageCount = 0;
+    let visibleVideoCount = 0;
     
     allMediaItems.forEach(item => {
         const filename = item.dataset.filename.toLowerCase();
@@ -483,17 +485,15 @@ function filterMediaItems(searchTerm) {
     }
 }
 
-// Thu gọn/mở rộng danh mục
-function toggleCategory(type, animate = true) {
+// Thu gọn/mở rộng danh mục  
+function toggleCategory(type) {
     const content = document.getElementById(`${type}-content`);
     const icon = document.querySelector(`#${type}-category .toggle-icon`);
     
     if (content.style.display === 'none' || !content.style.display) {
         content.style.display = 'grid';
         icon.textContent = '▼';
-        if (animate) {
-            content.style.animation = 'fadeIn 0.3s ease-out';
-        }
+        content.style.animation = 'fadeIn 0.3s ease-out';
     } else {
         content.style.display = 'none';
         icon.textContent = '►';
@@ -600,7 +600,7 @@ async function handleAuthCallback(code, state) {
         showLoadingOverlay();
 
         // Đổi code lấy access token
-        const tokenResponse = await fetch('https://cors-anywhere.herokuapp.com/https://github.com/login/oauth/access_token', {
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
