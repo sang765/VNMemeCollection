@@ -9,7 +9,14 @@ let currentFilteredItems = [];
 let currentPreviewIndex = 0;
 const REPO_OWNER = 'sang765';
 const REPO_NAME = 'VNMemeCollection';
-const BASE_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main`;
+
+// Determine if we're running locally or from GitHub Pages
+const isLocalhost = window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' ||
+                   window.location.hostname === '0.0.0.0';
+
+// Use local paths for development, GitHub URLs for production
+const BASE_URL = isLocalhost ? './' : `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main`;
 const CACHE_KEY = 'memeCollectionCache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
@@ -288,22 +295,41 @@ async function getFilesFromGitHub(folder) {
         const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${folder}`;
         console.log(`📡 [DEBUG] API URL: ${apiUrl}`);
         
-        const response = await fetch(apiUrl);
+        // Thêm headers để tránh CORS và rate limiting
+        const response = await fetch(apiUrl, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'VNMemeCollection/1.0'
+            }
+        });
+        
         console.log(`📊 [DEBUG] Response status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            if (response.status === 403) {
+                throw new Error('GitHub API rate limit exceeded. Please try again later.');
+            } else if (response.status === 404) {
+                throw new Error(`Repository not found or not accessible: ${REPO_OWNER}/${REPO_NAME}`);
+            } else {
+                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+            }
         }
         
         const data = await response.json();
         console.log(`📋 [DEBUG] Raw API response cho ${folder}:`, data);
-        console.log(`📦 [DEBUG] Tổng số items từ API: ${data.length}`);
+        console.log(`📦 [DEBUG] Tổng số items từ API: ${Array.isArray(data) ? data.length : 'Not an array'}`);
+        
+        // Kiểm tra nếu data là array
+        if (!Array.isArray(data)) {
+            console.error('❌ [DEBUG] API response is not an array:', data);
+            return [];
+        }
         
         // Lọc ra chỉ các file (loại bỏ thư mục con)
-        const allFiles = data.filter(item => item.type === 'file');
+        const allFiles = data.filter(item => item && item.type === 'file');
         console.log(`📁 [DEBUG] Chỉ files (không có thư mục): ${allFiles.length} files`);
         
-        const fileNames = allFiles.map(item => item.name);
+        const fileNames = allFiles.map(item => item.name).filter(name => name);
         console.log(`📝 [DEBUG] Tên tất cả files:`, fileNames);
         
         // Lọc theo định dạng file
@@ -332,7 +358,203 @@ async function getFilesFromGitHub(folder) {
         return files;
     } catch (error) {
         console.error(`❌ [ERROR] Lỗi khi lấy danh sách file từ ${folder}:`, error);
-        showToast(`Lỗi khi tải ${folder === 'images' ? 'ảnh' : 'video'}`, 'error');
+        
+        // Fallback: Sử dụng local files nếu API fail
+        console.log(`🔄 [DEBUG] Attempting to load ${folder} from local files...`);
+        const localFiles = await getLocalFiles(folder);
+        
+        if (localFiles.length > 0) {
+            console.log(`✅ [DEBUG] Successfully loaded ${localFiles.length} ${folder} from local files`);
+            return localFiles;
+        }
+        
+        showToast(`Lỗi khi tải ${folder === 'images' ? 'ảnh' : 'video'}: ${error.message}`, 'error');
+        return [];
+    }
+}
+
+// Fallback function để load từ local files (khi GitHub API fail)
+async function getLocalFiles(folder) {
+    try {
+        console.log(`📁 [DEBUG] Loading ${folder} from local directory...`);
+        
+        if (folder === 'images') {
+            // Sử dụng các file ảnh có sẵn trong thư mục local
+            const imageFiles = [
+                '0b01884b-84b5-40b3-b369-f5af36953043.jpeg',
+                '0d544bf98f6222d83c43a54218f1c8e0.jpg',
+                '2a582a86295b7d9c603c48559cc9e15f.jpg',
+                '2cc02ac7-e739-493d-b667-78625c864e2a.jpeg',
+                '3b69a450470e5da95379aee564bfb7c1.gif',
+                '3d53ebeb-4716-4626-8f4f-40819cb5210c.jpeg',
+                '3e0d3b2c63f871f733ba11766fe17339.gif',
+                '4cb5a7b65a3ed8a201d96600d081ed2e.gif',
+                '5b9b7c4f-1634-4e96-83b7-b0fa55c87788.jpeg',
+                '5d67606ed2e6a5485253b95472dc64cb.jpg',
+                '6ca3d8de26fe77e6831e3a3700b23315.gif',
+                '6f4025f83d11fbb560ed453e98d80104.gif',
+                '8d1710fe39eccfe75ab40b7ef9ac99af.jpg',
+                '8de0b37a-581a-4855-8610-8603debfed43.jpeg',
+                '9d035a6b-9f3f-468c-9fbe-71d2b8ef9961.jpeg',
+                '9f689e21e45b184ed19d88ac705dbfe3.gif',
+                '24fb054b-9e05-421c-94bf-1d3b28aceba4.jpeg',
+                '42f52e2e-535e-4c21-9d8d-684df3132621.jpeg',
+                '50e116094491a80d4c9e04582de39f03.jpg',
+                '84c49797233cf38289e7961f9930f1e1.gif',
+                '92b3eaf9-86e6-49a2-9150-4026a039d723.jpeg',
+                '315b7fb3-9de1-4a7e-a5b1-59cda42f2dd5.jpeg',
+                '560eca0e-2ec1-43c2-94ac-d9f19a82143a.jpeg',
+                '696b76e5-6fda-43cf-a4b8-29e42ce8745c.jpeg',
+                '761fddc6-20d3-42de-afbf-ee81ed9d2001.jpeg',
+                '977e58b8-f272-44af-bd15-1595bc58f750.gif',
+                '2704685f-00cf-420c-adb9-85d29b4a95c8.jpeg',
+                '19775593-79ed-4b49-bb01-df8e8da7131a.jpeg',
+                'FB_IMG_16882972002473864.jpg',
+                'FB_IMG_16883600154413204.jpg',
+                'FB_IMG_16883600243255453.jpg',
+                'FB_IMG_16883600349759651.jpg',
+                'FB_IMG_16883600391572418.jpg',
+                'FB_IMG_16883600492918048.jpg',
+                'FB_IMG_16883600540957209.jpg',
+                'FB_IMG_16883600616841949.jpg',
+                'FB_IMG_16883600657176901.jpg',
+                'FB_IMG_16883600698639814.jpg',
+                'FB_IMG_16883600765561400.jpg',
+                'FB_IMG_16883600804677881.jpg',
+                'FB_IMG_16883600882627105.jpg',
+                'FB_IMG_16883601133811331.jpg',
+                'FB_IMG_16883601187846593.jpg',
+                'FB_IMG_16883601312907709.jpg',
+                'FB_IMG_16883601394918740.jpg',
+                'FB_IMG_16883601502552855.jpg',
+                'FB_IMG_16883601642431602.jpg',
+                'FB_IMG_16883601689987273.jpg',
+                'FB_IMG_16883601765253099.jpg',
+                'FB_IMG_16883602057212900.jpg',
+                'FB_IMG_16883602216488195.jpg',
+                'FB_IMG_16883602258110572.jpg',
+                'FB_IMG_16883602403930424.jpg',
+                'FB_IMG_16883602615371421.jpg',
+                'FB_IMG_16883602912819595.jpg',
+                'FB_IMG_16883603311213308.jpg',
+                'FB_IMG_16883603420839454.jpg',
+                'FB_IMG_16883603508824007.jpg',
+                'FB_IMG_16883603606552316.jpg',
+                'FB_IMG_16883603785661761.jpg',
+                'FB_IMG_16883603873410853.jpg',
+                'FB_IMG_16883604296192763.jpg',
+                'FB_IMG_16883604566245586.jpg',
+                'FB_IMG_16883604833475118.jpg',
+                'FB_IMG_16883605006802125.jpg',
+                'FB_IMG_16883605072600015.jpg',
+                'FB_IMG_16883605203374223.jpg',
+                'FB_IMG_16883605260063039.jpg',
+                'FB_IMG_16883605372156297.jpg',
+                'FB_IMG_16883605440545292.jpg',
+                'FB_IMG_16883605603118173.jpg',
+                'FB_IMG_16883605686638841.jpg',
+                'FB_IMG_16883605752531692.jpg',
+                'FB_IMG_16883605841341153.jpg',
+                'FB_IMG_16883605895287012.jpg',
+                'FB_IMG_16883605949149533.jpg',
+                'FB_IMG_16883606007137135.jpg',
+                'FB_IMG_16883606085680860.jpg',
+                'FB_IMG_16883606122241533.jpg',
+                'FB_IMG_16883606186724925.jpg',
+                'FB_IMG_16883606307459611.jpg',
+                'FB_IMG_16883606418799807.jpg',
+                'FB_IMG_16883606464538433.jpg',
+                'FB_IMG_16883606516249289.jpg',
+                'FB_IMG_16883606604191811.jpg',
+                'FB_IMG_16883606687233940.jpg',
+                'FB_IMG_16883606773557231.jpg',
+                'FB_IMG_16883606814932783.jpg',
+                'FB_IMG_16883606862132646.jpg',
+                'FB_IMG_16883606926042987.jpg',
+                'FB_IMG_16883607002908588.jpg',
+                'FB_IMG_16883607046079741.jpg',
+                'FB_IMG_16883607143546032.jpg',
+                'FB_IMG_16883607279213934.jpg',
+                'FB_IMG_16883607654091515.jpg',
+                'FB_IMG_16883607763835006.jpg',
+                'FB_IMG_16883607869653858.jpg',
+                'FB_IMG_16883607967683107.jpg',
+                'FB_IMG_16883608071868498.jpg',
+                'FB_IMG_16883608175724298.jpg',
+                'FB_IMG_16883608230312484.jpg',
+                'FB_IMG_16883608305490207.jpg',
+                'FB_IMG_16883608351241142.jpg',
+                'FB_IMG_16883608597760777.jpg',
+                'FB_IMG_16883608785426839.jpg',
+                'FB_IMG_16883608984579347.jpg',
+                'FB_IMG_16883609046050527.jpg',
+                'FB_IMG_16883609978962563.jpg',
+                'FB_IMG_16883610038353907.jpg',
+                'FB_IMG_16883610111837044.jpg',
+                'FB_IMG_16883610316528159.jpg',
+                'FB_IMG_16883610381907764.jpg',
+                'FB_IMG_16883610461327368.jpg',
+                'FB_IMG_16883610508427987.jpg',
+                'FB_IMG_16883610579816923.jpg',
+                'FB_IMG_16883610941926397.jpg',
+                'FB_IMG_16883611182672186.jpg',
+                'FB_IMG_16883611239529094.jpg',
+                'FB_IMG_16883679129224622.jpg',
+                'FB_IMG_16883679215449024.jpg',
+                'FB_IMG_16883679266670606.jpg',
+                'FB_IMG_16883679343546863.jpg',
+                'FB_IMG_16883679726311820.jpg',
+                'FB_IMG_16883679918512316.jpg',
+                'FB_IMG_16883680043873858.jpg',
+                'FB_IMG_16883680108319531.jpg',
+                'FB_IMG_16883680456605384.jpg',
+                'FB_IMG_16883681136965580.jpg',
+                'FB_IMG_16883681175791185.jpg',
+                'FB_IMG_16883681253579137.jpg',
+                'FB_IMG_16883681409689769.jpg',
+                'FB_IMG_16883681510581079.jpg',
+                'FB_IMG_16883685680075348.jpg',
+                'FB_IMG_16884457340450245.jpg',
+                'FB_IMG_16884457386368227.jpg',
+                'FB_IMG_16884457459033056.jpg',
+                'FB_IMG_16886339446173804.jpg',
+                'FB_IMG_16886339745097734.jpg',
+                'FB_IMG_16886339898015788.jpg',
+                'FB_IMG_16886340038845802.jpg',
+                'FB_IMG_16886340263754289.jpg',
+                'FB_IMG_16886341271871539.jpg',
+                'FB_IMG_16886341326012687.jpg',
+                'a7b2265c24426ad4753ccd2369149654.jpg',
+                'b9f1947f21f38625f26ea8803dc2142c.gif',
+                'b70ca661-bab4-483a-a919-9379d2df9dbb.jpeg',
+                'b83d74d9f6a43e738a9d4d24996a8cd1.jpg',
+                'b214abc3-a7cf-42ca-a0fa-566de43276d9.jpeg',
+                'b5083e8a27e41909abf1babc0a7d3d80.gif',
+                'bd8c4b92-c9a8-4e5a-97ee-bb9ceb25db45.jpeg',
+                'c4fa82c8-38b5-4aca-b1e9-be1e32a666de.jpeg',
+                'c9f413a1-bd07-4edf-a32b-cc5336926693.jpeg',
+                'c53acff94c0018e697ead0a0872913ec.gif',
+                'ce9c949d6c73dbfb889f6036bac022dd.gif',
+                'd6bffc0a-db9b-498f-bb21-3fa747d47c7f.jpeg',
+                'd6f17e24-a0fd-447f-b8bd-ef30a3c50607.jpeg',
+                'd9d358be24f3186070cfc996b04e1984.gif',
+                'dbe1f6c4-b67c-42bd-a0fc-a1ce2414550e.jpeg',
+                'df11287e5e7dec8a886b4a9f7cb6445f.jpg',
+                'e5a928161a8c88d9cde8f8f9500877ba.gif',
+                'f9354b97a321a0c5684bfb3166fbb419.jpg'
+            ];
+            
+            console.log(`✅ [DEBUG] Loaded ${imageFiles.length} images from local fallback`);
+            return imageFiles;
+        } else if (folder === 'videos') {
+            // Video folder appears to be empty based on file list
+            console.log(`⚠️ [DEBUG] No videos found in local directory`);
+            return [];
+        }
+        
+        return [];
+    } catch (error) {
+        console.error(`❌ [ERROR] Error loading local ${folder}:`, error);
         return [];
     }
 }
