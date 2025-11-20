@@ -97,110 +97,241 @@ function setupEventListeners() {
 // Tải danh sách media files
 async function loadMediaFiles() {
     try {
+        console.log('🚀 [DEBUG] Bắt đầu quá trình tải media files...');
+        
+        // Hiển thị loading overlay chi tiết
+        showDetailedLoadingOverlay();
+        updateLoadingStep(1, 'Kiểm tra bộ nhớ đệm', 'Đang kiểm tra dữ liệu đã lưu trong trình duyệt...', 10);
+        
         // Kiểm tra cache trước
+        console.log('💾 [DEBUG] Kiểm tra cache trong localStorage...');
         const cachedData = getCachedData();
+        
         if (cachedData) {
-            mediaFiles = cachedData;
-            updateMediaDisplay();
-            hideLoadingOverlay();
-            showToast('Đã tải dữ liệu từ bộ nhớ đệm', 'success');
+            console.log('✅ [DEBUG] Tìm thấy cache hợp lệ');
+            console.log(`🖼️ [DEBUG] Cache ảnh: ${cachedData.images?.length || 0} files`);
+            console.log(`🎥 [DEBUG] Cache video: ${cachedData.videos?.length || 0} files`);
+            
+            updateLoadingStep(1, 'Bộ nhớ đệm hợp lệ', `Tìm thấy ${cachedData.images?.length || 0} ảnh và ${cachedData.videos?.length || 0} video`, 25);
+            
+            // Hiển thị loading UI để user thấy quá trình
+            setTimeout(() => {
+                updateLoadingStep(4, 'Đang hiển thị giao diện', 'Tải dữ liệu vào trang web...', 90);
+                
+                mediaFiles = cachedData;
+                updateMediaDisplay();
+                
+                updateLoadingProgress(100);
+                completeLoading();
+                showToast('Đã tải dữ liệu từ bộ nhớ đệm', 'success');
+            }, 800);
+            
             return;
+        } else {
+            console.log('⏳ [DEBUG] Không có cache hợp lệ, lấy dữ liệu mới từ API');
         }
         
-        // Lấy dữ liệu mới từ API
-        const [images, videos] = await Promise.all([
-            getFilesFromGitHub('images'),
-            getFilesFromGitHub('videos')
-        ]);
+        // Bước 2: Tải danh sách ảnh
+        updateLoadingStep(2, 'Tải danh sách ảnh', 'Đang kết nối đến repository GitHub...', 30);
         
-        mediaFiles = { images, videos };
-        
-        // Lưu vào cache
-        cacheData(mediaFiles);
-        
-        // Cập nhật hiển thị
-        updateMediaDisplay();
-        hideLoadingOverlay();
-        showToast('Đã tải dữ liệu mới thành công', 'success');
+        try {
+            const images = await getFilesFromGitHub('images');
+            console.log(`📊 [DEBUG] Kết quả ảnh từ API: ${images.length} files`);
+            
+            updateLoadingStep(2, 'Đã tải danh sách ảnh', `Tìm thấy ${images.length} ảnh từ repository`, 50);
+            
+            // Bước 3: Tải danh sách video
+            updateLoadingStep(3, 'Tải danh sách video', 'Đang tải danh sách video...', 60);
+            
+            const videos = await getFilesFromGitHub('videos');
+            console.log(`📊 [DEBUG] Kết quả video từ API: ${videos.length} files`);
+            
+            updateLoadingStep(3, 'Đã tải danh sách video', `Tìm thấy ${videos.length} video từ repository`, 75);
+            
+            mediaFiles = { images, videos };
+            console.log('💾 [DEBUG] Cập nhật biến mediaFiles:', mediaFiles);
+            
+            // Lưu vào cache
+            updateLoadingStep(3, 'Lưu dữ liệu', 'Đang lưu vào bộ nhớ đệm trình duyệt...', 80);
+            cacheData(mediaFiles);
+            
+            // Bước 4: Hiển thị giao diện
+            updateLoadingStep(4, 'Đang hiển thị giao diện', 'Tải dữ liệu vào trang web...', 90);
+            updateMediaDisplay();
+            
+            // Hoàn thành
+            completeLoading();
+            showToast('Đã tải dữ liệu mới thành công', 'success');
+            console.log('🎉 [DEBUG] Hoàn thành load dữ liệu mới từ API');
+            
+        } catch (apiError) {
+            console.error('❌ [ERROR] Lỗi khi tải từ API:', apiError);
+            failLoading('Không thể kết nối đến repository. Vui lòng kiểm tra kết nối internet.');
+        }
         
     } catch (error) {
-        console.error('Lỗi khi tải danh sách media:', error);
+        console.error('❌ [ERROR] Lỗi khi tải danh sách media:', error);
+        failLoading('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+        
         document.getElementById('image-content').innerHTML = '<p class="error">Không thể tải danh sách ảnh</p>';
         document.getElementById('video-content').innerHTML = '<p class="error">Không thể tải danh sách video</p>';
-        hideLoadingOverlay();
-        showToast('Lỗi khi tải dữ liệu', 'error');
     }
 }
 
 // Lấy dữ liệu từ cache
 function getCachedData() {
+    console.log('💾 [DEBUG] Kiểm tra cache với key:', CACHE_KEY);
+    
     const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    const { data, timestamp } = JSON.parse(cached);
-    
-    // Kiểm tra nếu cache vẫn còn hiệu lực
-    if (Date.now() - timestamp < CACHE_DURATION) {
-        return data;
+    if (!cached) {
+        console.log('❌ [DEBUG] Không tìm thấy cache trong localStorage');
+        return null;
     }
     
-    return null;
+    console.log('📦 [DEBUG] Tìm thấy cache data, đang parse...');
+    
+    try {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        const ageInMinutes = Math.round(age / (1000 * 60));
+        
+        console.log(`⏰ [DEBUG] Cache age: ${ageInMinutes} phút (${age}ms)`);
+        console.log(`🔢 [DEBUG] Cache duration: ${CACHE_DURATION / (1000 * 60)} phút`);
+        
+        // Kiểm tra nếu cache vẫn còn hiệu lực
+        if (Date.now() - timestamp < CACHE_DURATION) {
+            console.log('✅ [DEBUG] Cache vẫn còn hợp lệ');
+            console.log(`📊 [DEBUG] Cache data structure:`, {
+                hasImages: !!data.images,
+                imagesCount: data.images?.length || 0,
+                hasVideos: !!data.videos,
+                videosCount: data.videos?.length || 0
+            });
+            return data;
+        } else {
+            console.log('⏳ [DEBUG] Cache đã hết hạn, sẽ lấy dữ liệu mới');
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ [DEBUG] Lỗi parse cache data:', error);
+        localStorage.removeItem(CACHE_KEY);
+        return null;
+    }
 }
 
 // Lưu dữ liệu vào cache
 function cacheData(data) {
+    console.log('💾 [DEBUG] Bắt đầu lưu dữ liệu vào cache...');
+    
     const cache = {
         data,
         timestamp: Date.now()
     };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    
+    console.log('📊 [DEBUG] Cache data sẽ lưu:', {
+        imagesCount: data.images?.length || 0,
+        videosCount: data.videos?.length || 0,
+        totalFiles: (data.images?.length || 0) + (data.videos?.length || 0)
+    });
+    
+    try {
+        const serializedCache = JSON.stringify(cache);
+        localStorage.setItem(CACHE_KEY, serializedCache);
+        console.log('✅ [DEBUG] Đã lưu cache thành công');
+        console.log('📝 [DEBUG] Cache key:', CACHE_KEY);
+        console.log('💾 [DEBUG] Cache size:', serializedCache.length, 'characters');
+    } catch (error) {
+        console.error('❌ [ERROR] Lỗi khi lưu cache:', error);
+    }
 }
 
 // Cập nhật hiển thị media
 function updateMediaDisplay() {
-    document.getElementById('image-count').textContent = mediaFiles.images.length;
-    document.getElementById('video-count').textContent = mediaFiles.videos.length;
+    console.log('🖥️ [DEBUG] Bắt đầu cập nhật hiển thị media...');
     
-    const totalCount = mediaFiles.images.length + mediaFiles.videos.length;
+    // Cập nhật counters
+    const imageCount = mediaFiles.images.length;
+    const videoCount = mediaFiles.videos.length;
+    const totalCount = imageCount + videoCount;
+    
+    console.log('📊 [DEBUG] Cập nhật counters:');
+    console.log(`   📸 Image count: ${imageCount}`);
+    console.log(`   🎬 Video count: ${videoCount}`);
+    console.log(`   📋 Total count: ${totalCount}`);
+    
+    document.getElementById('image-count').textContent = imageCount;
+    document.getElementById('video-count').textContent = videoCount;
     document.getElementById('total-count').textContent = totalCount;
     
+    // Hiển thị media items
+    console.log('🎨 [DEBUG] Bắt đầu hiển thị media items...');
     displayMediaItems('image', mediaFiles.images);
     displayMediaItems('video', mediaFiles.videos);
     
     // Tự động mở rộng danh mục
+    console.log('📂 [DEBUG] Tự động mở rộng categories...');
     setTimeout(() => {
-        toggleCategory('image', false);
-        toggleCategory('video', false);
+        console.log('🔽 [DEBUG] Toggle category: image');
+        toggleCategory('image');
+        console.log('🔽 [DEBUG] Toggle category: video');
+        toggleCategory('video');
     }, 100);
+    
+    console.log('✅ [DEBUG] Hoàn thành cập nhật hiển thị');
 }
 
 // Lấy danh sách file từ GitHub API
 async function getFilesFromGitHub(folder) {
     try {
-        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${folder}?${Date.now()}`);
+        console.log(`🔍 [DEBUG] Bắt đầu lấy dữ liệu từ thư mục: ${folder}`);
+        
+        const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${folder}`;
+        console.log(`📡 [DEBUG] API URL: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl);
+        console.log(`📊 [DEBUG] Response status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log(`📋 [DEBUG] Raw API response cho ${folder}:`, data);
+        console.log(`📦 [DEBUG] Tổng số items từ API: ${data.length}`);
         
         // Lọc ra chỉ các file (loại bỏ thư mục con)
-        const files = data.filter(item => item.type === 'file')
-                         .map(item => item.name)
-                         .filter(name => {
-                             // Lọc theo định dạng file
-                             if (folder === 'images') {
-                                 return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name);
-                             } else if (folder === 'videos') {
-                                 return /\.(mp4|webm|mov|avi|mkv|wmv|flv)$/i.test(name);
-                             }
-                             return false;
-                         });
+        const allFiles = data.filter(item => item.type === 'file');
+        console.log(`📁 [DEBUG] Chỉ files (không có thư mục): ${allFiles.length} files`);
+        
+        const fileNames = allFiles.map(item => item.name);
+        console.log(`📝 [DEBUG] Tên tất cả files:`, fileNames);
+        
+        // Lọc theo định dạng file
+        let files;
+        if (folder === 'images') {
+            const imageRegex = /\.(jpg|jpeg|png|gif|webp|bmp)$/i;
+            files = fileNames.filter(name => {
+                const isValid = imageRegex.test(name);
+                console.log(`🖼️ [DEBUG] Kiểm tra ảnh "${name}": ${isValid ? '✅ Hợp lệ' : '❌ Không hợp lệ'}`);
+                return isValid;
+            });
+        } else if (folder === 'videos') {
+            const videoRegex = /\.(mp4|webm|mov|avi|mkv|wmv|flv)$/i;
+            files = fileNames.filter(name => {
+                const isValid = videoRegex.test(name);
+                console.log(`🎥 [DEBUG] Kiểm tra video "${name}": ${isValid ? '✅ Hợp lệ' : '❌ Không hợp lệ'}`);
+                return isValid;
+            });
+        } else {
+            files = fileNames;
+        }
+        
+        console.log(`✅ [DEBUG] Kết quả cuối cùng cho ${folder}: ${files.length} files`);
+        console.log(`📋 [DEBUG] Danh sách ${folder} cuối cùng:`, files);
         
         return files;
     } catch (error) {
-        console.error(`Lỗi khi lấy danh sách file từ ${folder}:`, error);
+        console.error(`❌ [ERROR] Lỗi khi lấy danh sách file từ ${folder}:`, error);
         showToast(`Lỗi khi tải ${folder === 'images' ? 'ảnh' : 'video'}`, 'error');
         return [];
     }
@@ -208,27 +339,42 @@ async function getFilesFromGitHub(folder) {
 
 // Hiển thị media items
 function displayMediaItems(type, items) {
+    console.log(`🎨 [DEBUG] Hiển thị ${type} items: ${items.length} files`);
+    
     const container = document.getElementById(`${type}-content`);
     
     if (items.length === 0) {
+        console.log(`⚠️ [DEBUG] Không có ${type} nào để hiển thị`);
         container.innerHTML = `<p class="no-items">Chưa có ${type === 'image' ? 'ảnh' : 'video'} nào</p>`;
         return;
     }
     
+    console.log(`📋 [DEBUG] Danh sách ${type} sẽ hiển thị:`, items);
+    
     container.innerHTML = '';
     
     items.forEach((item, index) => {
+        console.log(`🔧 [DEBUG] Tạo element cho ${type}: "${item}" (index: ${index})`);
         const mediaElement = createMediaElement(type, item);
         container.appendChild(mediaElement);
     });
+    
+    console.log(`✅ [DEBUG] Hoàn thành hiển thị ${items.length} ${type} items`);
 }
 
 // Tạo media element
 function createMediaElement(type, filename) {
+    console.log(`🔧 [DEBUG] Tạo media element: type="${type}", filename="${filename}"`);
+    
     const div = document.createElement('div');
     div.className = 'media-item';
     div.dataset.filename = filename;
     div.dataset.type = type;
+    
+    console.log(`📝 [DEBUG] Thiết lập dataset cho element:`, {
+        filename: filename,
+        type: type
+    });
     
     // Thêm tên file (sẽ hiển thị khi hover)
     const filenameSpan = document.createElement('span');
@@ -237,28 +383,48 @@ function createMediaElement(type, filename) {
     div.appendChild(filenameSpan);
     
     if (type === 'image') {
+        console.log(`🖼️ [DEBUG] Tạo image element cho: "${filename}"`);
+        
         const img = document.createElement('img');
-        img.src = `${BASE_URL}/images/${encodeURIComponent(filename)}`;
+        const imageUrl = `${BASE_URL}/images/${encodeURIComponent(filename)}`;
+        img.src = imageUrl;
         img.alt = filename;
         img.loading = 'lazy';
+        
+        console.log(`🔗 [DEBUG] Image URL: ${imageUrl}`);
+        
         img.onerror = function() {
+            console.log(`❌ [DEBUG] Image load error cho: "${filename}"`);
             this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI5MCUiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5LMO0gY8O1IMSR4bqhbmc8L3RleHQ+PC9zdmc+';
         };
+        
         div.appendChild(img);
     } else {
+        console.log(`🎥 [DEBUG] Tạo video element cho: "${filename}"`);
+        
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.className = 'video-thumbnail';
         
         // Thử tìm thumbnail (cùng tên với đuôi jpg/png)
         const thumbnailName = filename.split('.')[0];
+        console.log(`🖼️ [DEBUG] Thumbnail name: "${thumbnailName}"`);
+        
         const img = document.createElement('img');
-        img.src = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.jpg`;
+        let thumbnailUrl = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.jpg`;
+        console.log(`🔗 [DEBUG] Thumbnail JPG URL: ${thumbnailUrl}`);
+        
+        img.src = thumbnailUrl;
         img.alt = filename;
+        
         img.onerror = function() {
-            // Nếu không có thumbnail jpg, thử png
-            this.src = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.png`;
+            // Thử png nếu jpg không có
+            thumbnailUrl = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.png`;
+            console.log(`🔗 [DEBUG] Thumbnail PNG URL: ${thumbnailUrl}`);
+            this.src = thumbnailUrl;
+            
             this.onerror = function() {
                 // Nếu không có thumbnail nào, hiển thị placeholder
+                console.log(`⚠️ [DEBUG] Không có thumbnail cho: "${filename}", hiển thị placeholder`);
                 this.style.display = 'none';
                 const iconDiv = document.createElement('div');
                 iconDiv.className = 'video-icon';
@@ -271,7 +437,13 @@ function createMediaElement(type, filename) {
         div.appendChild(thumbnailDiv);
     }
     
-    div.addEventListener('click', () => openPreview(type, filename));
+    // Thêm click event
+    div.addEventListener('click', () => {
+        console.log(`🖱️ [DEBUG] Click on media item: type="${type}", filename="${filename}"`);
+        openPreview(type, filename);
+    });
+    
+    console.log(`✅ [DEBUG] Hoàn thành tạo media element cho: "${filename}"`);
     return div;
 }
 
@@ -556,6 +728,114 @@ function showLoadingOverlay() {
 // Ẩn overlay loading
 function hideLoadingOverlay() {
     document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// ==================== ENHANCED LOADING STATUS FUNCTIONS ====================
+
+// Cập nhật tiêu đề loading
+function updateLoadingTitle(title) {
+    document.getElementById('loading-title').textContent = title;
+    console.log(`📝 [LOADING] Title: ${title}`);
+}
+
+// Cập nhật thông điệp loading
+function updateLoadingMessage(message) {
+    document.getElementById('loading-message').textContent = message;
+    console.log(`💬 [LOADING] Message: ${message}`);
+}
+
+// Cập nhật trạng thái của một bước
+function updateStepStatus(stepNumber, status, isActive = false, isCompleted = false) {
+    const stepElement = document.getElementById(`step-${stepNumber}`);
+    const statusElement = stepElement.querySelector('.step-status');
+    
+    // Xóa tất cả classes cũ
+    stepElement.classList.remove('active', 'completed');
+    
+    // Thêm class mới
+    if (isActive) stepElement.classList.add('active');
+    if (isCompleted) stepElement.classList.add('completed');
+    
+    // Cập nhật icon trạng thái
+    statusElement.textContent = status;
+    
+    console.log(`🔄 [LOADING] Step ${stepNumber}: ${status} ${isActive ? '(active)' : ''} ${isCompleted ? '(completed)' : ''}`);
+}
+
+// Cập nhật tiến độ loading
+function updateLoadingProgress(percentage) {
+    const progressFill = document.getElementById('status-progress');
+    const progressPercentage = document.getElementById('progress-percentage');
+    
+    progressFill.style.width = percentage + '%';
+    progressPercentage.textContent = percentage + '%';
+    
+    console.log(`📊 [LOADING] Progress: ${percentage}%`);
+}
+
+// Hiển thị loading với trạng thái chi tiết
+function showDetailedLoadingOverlay() {
+    // Reset tất cả steps
+    for (let i = 1; i <= 4; i++) {
+        updateStepStatus(i, '⏳', false, false);
+    }
+    
+    // Cập nhật progress về 0%
+    updateLoadingProgress(0);
+    
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+// Cập nhật toàn bộ quá trình loading theo từng bước
+function updateLoadingStep(stepNumber, title, message, percentage) {
+    console.log(`🚀 [LOADING] Step ${stepNumber}: ${title}`);
+    
+    // Tắt step trước đó nếu có
+    if (stepNumber > 1) {
+        updateStepStatus(stepNumber - 1, '✅', false, true);
+    }
+    
+    // Bật step hiện tại
+    updateStepStatus(stepNumber, '🔄', true, false);
+    
+    // Cập nhật tiêu đề và thông điệp
+    updateLoadingTitle(title);
+    updateLoadingMessage(message);
+    
+    // Cập nhật progress
+    updateLoadingProgress(percentage);
+}
+
+// Hoàn thành loading
+function completeLoading() {
+    // Đánh dấu tất cả steps là completed
+    for (let i = 1; i <= 4; i++) {
+        updateStepStatus(i, '✅', false, true);
+    }
+    
+    updateLoadingTitle('Hoàn thành!');
+    updateLoadingMessage('Đã tải xong tất cả dữ liệu');
+    updateLoadingProgress(100);
+    
+    console.log('✅ [LOADING] Loading completed!');
+    
+    // Ẩn overlay sau 1 giây
+    setTimeout(() => {
+        hideLoadingOverlay();
+    }, 1000);
+}
+
+// Lỗi loading
+function failLoading(errorMessage) {
+    updateLoadingTitle('Lỗi tải dữ liệu');
+    updateLoadingMessage(errorMessage);
+    
+    // Đánh dấu tất cả steps là failed
+    for (let i = 1; i <= 4; i++) {
+        updateStepStatus(i, '❌', false, true);
+    }
+    
+    console.error('❌ [LOADING] Loading failed:', errorMessage);
 }
 
 // ==================== AUTHENTICATION FUNCTIONS ====================

@@ -55,7 +55,38 @@
         
         <div id="loading-overlay">
             <div class="spinner"></div>
-            <p>Đang tải dữ liệu...</p>
+            <div class="loading-status">
+                <h3 id="loading-title">Đang khởi tạo...</h3>
+                <p id="loading-message">Chuẩn bị tải dữ liệu...</p>
+                <div class="loading-steps">
+                    <div class="step" id="step-1">
+                        <span class="step-icon">📋</span>
+                        <span class="step-text">Kiểm tra cache</span>
+                        <span class="step-status">⏳</span>
+                    </div>
+                    <div class="step" id="step-2">
+                        <span class="step-icon">🖼️</span>
+                        <span class="step-text">Tải danh sách ảnh</span>
+                        <span class="step-status">⏳</span>
+                    </div>
+                    <div class="step" id="step-3">
+                        <span class="step-icon">🎥</span>
+                        <span class="step-text">Tải danh sách video</span>
+                        <span class="step-status">⏳</span>
+                    </div>
+                    <div class="step" id="step-4">
+                        <span class="step-icon">🎨</span>
+                        <span class="step-text">Hiển thị giao diện</span>
+                        <span class="step-status">⏳</span>
+                    </div>
+                </div>
+                <div class="loading-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="status-progress"></div>
+                    </div>
+                    <p id="progress-percentage">0%</p>
+                </div>
+            </div>
         </div>
     </main>
     
