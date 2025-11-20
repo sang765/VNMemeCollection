@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Khởi tạo ứng dụng
 function initApp() {
+    console.log('🚀 [INIT] Starting application initialization...');
+    
     // Thiết lập theme từ localStorage
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -44,20 +46,21 @@ function initApp() {
     // Khởi tạo authentication
     initAuth();
 
-    // Hiển thị thông báo loading
-    showLoadingOverlay();
-    document.getElementById('image-content').innerHTML = '<p class="loading">Đang tải danh sách ảnh...</p>';
-    document.getElementById('video-content').innerHTML = '<p class="loading">Đang tải danh sách video...</p>';
-
     // Thiết lập sự kiện
     setupEventListeners();
     setupAuthEventListeners();
 
-    // Lấy danh sách ảnh và video
-    loadMediaFiles();
+    // Initialize content areas
+    document.getElementById('image-content').innerHTML = '<p class="loading">Đang tải danh sách ảnh...</p>';
+    document.getElementById('video-content').innerHTML = '<p class="loading">Đang tải danh sách video...</p>';
 
     // Hiển thị thời gian cập nhật cuối
     document.getElementById('last-updated').textContent = new Date().toLocaleDateString('vi-VN');
+    
+    // Lấy danh sách ảnh và video (this will show loading overlay)
+    loadMediaFiles();
+    
+    console.log('✅ [INIT] Application initialization complete');
 }
 
 // Thiết lập các event listeners
@@ -106,6 +109,13 @@ async function loadMediaFiles() {
     try {
         console.log('🚀 [DEBUG] Bắt đầu quá trình tải media files...');
         
+        // Safety timeout để tránh loading bị treo vĩnh viễn
+        const safetyTimeout = setTimeout(() => {
+            console.log('⚠️ [SAFETY] Loading timeout reached, forcing completion...');
+            hideLoadingOverlay();
+            showToast('Đã tải dữ liệu (timeout)', 'success');
+        }, 10000); // 10 giây timeout
+        
         // Hiển thị loading overlay chi tiết
         showDetailedLoadingOverlay();
         updateLoadingStep(1, 'Kiểm tra bộ nhớ đệm', 'Đang kiểm tra dữ liệu đã lưu trong trình duyệt...', 10);
@@ -129,9 +139,10 @@ async function loadMediaFiles() {
                 updateMediaDisplay();
                 
                 updateLoadingProgress(100);
+                clearTimeout(safetyTimeout); // Clear safety timeout
                 completeLoading();
                 showToast('Đã tải dữ liệu từ bộ nhớ đệm', 'success');
-            }, 800);
+            }, 500); // Giảm thời gian từ 800ms xuống 500ms
             
             return;
         } else {
@@ -167,16 +178,19 @@ async function loadMediaFiles() {
             updateMediaDisplay();
             
             // Hoàn thành
+            clearTimeout(safetyTimeout); // Clear safety timeout
             completeLoading();
             showToast('Đã tải dữ liệu mới thành công', 'success');
             console.log('🎉 [DEBUG] Hoàn thành load dữ liệu mới từ API');
             
         } catch (apiError) {
+            clearTimeout(safetyTimeout); // Clear safety timeout
             console.error('❌ [ERROR] Lỗi khi tải từ API:', apiError);
             failLoading('Không thể kết nối đến repository. Vui lòng kiểm tra kết nối internet.');
         }
         
     } catch (error) {
+        clearTimeout(safetyTimeout); // Clear safety timeout
         console.error('❌ [ERROR] Lỗi khi tải danh sách media:', error);
         failLoading('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
         
@@ -1030,6 +1044,8 @@ function updateLoadingStep(stepNumber, title, message, percentage) {
 
 // Hoàn thành loading
 function completeLoading() {
+    console.log('🏁 [LOADING] Starting completion process...');
+    
     // Đánh dấu tất cả steps là completed
     for (let i = 1; i <= 4; i++) {
         updateStepStatus(i, '✅', false, true);
@@ -1039,12 +1055,14 @@ function completeLoading() {
     updateLoadingMessage('Đã tải xong tất cả dữ liệu');
     updateLoadingProgress(100);
     
-    console.log('✅ [LOADING] Loading completed!');
+    console.log('✅ [LOADING] Loading completed successfully!');
     
-    // Ẩn overlay sau 1 giây
+    // Ẩn overlay ngay lập tức để tránh hanging
     setTimeout(() => {
+        console.log('🔄 [LOADING] Hiding loading overlay...');
         hideLoadingOverlay();
-    }, 1000);
+        console.log('✅ [LOADING] Loading overlay hidden');
+    }, 500); // Giảm thời gian từ 1s xuống 500ms
 }
 
 // Lỗi loading
