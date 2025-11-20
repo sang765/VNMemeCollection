@@ -16,14 +16,16 @@
                 <input type="text" id="search-input" placeholder="Tìm kiếm meme...">
                 <button id="clear-search" style="display: none;">×</button>
             </div>
-            <div class="auth-controls">
+            <div class="auth-controls" style="display: none;">
                 <button id="login-btn" style="display: none;">Đăng nhập GitHub</button>
                 <button id="upload-btn" style="display: none;">📤 Upload Meme</button>
                 <span id="user-info" style="display: none;"></span>
                 <button id="logout-btn" style="display: none;">Đăng xuất</button>
             </div>
-            <button id="toggle-dark-mode">🌙</button>
-            <button id="refresh-btn">🔄</button>
+            <div class="top-button" id="button">
+                <button id="toggle-dark-mode">🌙</button>
+                <button id="refresh-btn">🔄</button>
+            </div>
         </div>
     </header>
     
@@ -55,38 +57,7 @@
         
         <div id="loading-overlay">
             <div class="spinner"></div>
-            <div class="loading-status">
-                <h3 id="loading-title">Đang khởi tạo...</h3>
-                <p id="loading-message">Chuẩn bị tải dữ liệu...</p>
-                <div class="loading-steps">
-                    <div class="step" id="step-1">
-                        <span class="step-icon">📋</span>
-                        <span class="step-text">Kiểm tra cache</span>
-                        <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-2">
-                        <span class="step-icon">🖼️</span>
-                        <span class="step-text">Tải danh sách ảnh</span>
-                        <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-3">
-                        <span class="step-icon">🎥</span>
-                        <span class="step-text">Tải danh sách video</span>
-                        <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-4">
-                        <span class="step-icon">🎨</span>
-                        <span class="step-text">Hiển thị giao diện</span>
-                        <span class="step-status">⏳</span>
-                    </div>
-                </div>
-                <div class="loading-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="status-progress"></div>
-                    </div>
-                    <p id="progress-percentage">0%</p>
-                </div>
-            </div>
+            <p>Đang tải dữ liệu...</p>
         </div>
     </main>
     
@@ -111,7 +82,6 @@
             </div>
         </div>
     </div>
-
     <!-- Upload Modal -->
     <div id="upload-modal" class="modal">
         <div class="modal-content">
@@ -151,5 +121,11 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.5/base64.min.js"></script>
+</body>
+</html>
+    <footer>
+        <p>Powered by <a href="https://github.com/sang765/VNMemeCollection" target="_blank">VNMemeCollection</a> • <span id="last-updated"></span></p>
+    </footer>
+    <script src="main.js"></script>
 </body>
 </html>
