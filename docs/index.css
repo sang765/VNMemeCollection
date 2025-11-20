@@ -771,12 +771,7 @@ footer a:hover {
     }
     
     .action-buttons {
-        flex-direction: column;
         gap: 10px;
-    }
-    
-    .action-buttons button {
-        width: 100%;
     }
     
     .preview-header {
