@@ -5,29 +5,28 @@
 }
 
 :root {
-    --primary-color: #4CAF50;
+    --primary: #4CAF50;
     --primary-hover: #3e8e41;
-    --bg-color: #f0f0f0;
-    --text-color: #333;
-    --card-bg: white;
-    --header-bg: white;
-    --border-color: #ddd;
+    --bg: #f0f0f0;
+    --text: #333;
+    --card: white;
+    --border: #ddd;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] {
-    --bg-color: #1a1a1a;
-    --text-color: #f0f0f0;
-    --card-bg: #2d2d2d;
+    --bg: #1a1a1a;
+    --text: #f0f0f0;
+    --card: #2d2d2d;
     --header-bg: #2d2d2d;
-    --border-color: #444;
+    --border: #444;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    background-color: var(--bg);
+    color: var(--text);
     padding: 20px;
     transition: background-color 0.3s, color 0.3s;
     min-height: 100vh;
@@ -36,7 +35,7 @@ body {
 }
 
 header {
-    background-color: var(--header-bg);
+    background-color: var(--card);
     padding: 20px;
     border-radius: 10px;
     box-shadow: var(--shadow);
@@ -44,10 +43,112 @@ header {
     text-align: center;
 }
 
-h1 {
-    color: var(--primary-color);
+.header-top {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+h1 {
+    color: var(--primary);
+    margin: 0;
     font-size: 2.2rem;
+    flex-shrink: 0;
+}
+
+/* Language switcher */
+.language-switcher {
+    position: relative;
+    display: inline-block;
+}
+
+#language-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+#language-toggle:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+#language-toggle .language-arrow {
+    transition: transform 0.3s;
+    font-size: 10px;
+}
+
+#language-toggle.active .language-arrow {
+    transform: rotate(180deg);
+}
+
+.language-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: var(--card);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    min-width: 150px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s;
+}
+
+.language-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.language-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.language-option:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.language-option:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.language-option:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.language-option.active {
+    background-color: var(--primary);
+    color: white;
+}
+
+.language-option .flag {
+    font-size: 16px;
 }
 
 .header-controls {
@@ -69,11 +170,11 @@ h1 {
 #search-input {
     padding: 12px 40px 12px 15px;
     width: 100%;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
     border-radius: 25px;
     font-size: 16px;
-    background-color: var(--card-bg);
-    color: var(--text-color);
+    background-color: var(--card);
+    color: var(--text);
 }
 
 #clear-search {
@@ -93,12 +194,12 @@ h1 {
 }
 
 #clear-search:hover {
-    color: var(--primary-color);
+    color: var(--primary);
 }
 
 #toggle-dark-mode, #refresh-btn {
     padding: 10px 15px;
-    background-color: var(--primary-color);
+    background-color: var(--primary);
     color: white;
     border: none;
     border-radius: 25px;
@@ -112,7 +213,7 @@ h1 {
 }
 
 .stats-bar {
-    background-color: var(--card-bg);
+    background-color: var(--card);
     padding: 10px 15px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -132,14 +233,14 @@ h1 {
 
 .category {
     margin-bottom: 25px;
-    background-color: var(--card-bg);
+    background-color: var(--card);
     border-radius: 10px;
     overflow: hidden;
     box-shadow: var(--shadow);
 }
 
 .category-header {
-    background-color: var(--primary-color);
+    background-color: var(--primary);
     color: white;
     padding: 15px 20px;
     cursor: pointer;
@@ -176,7 +277,7 @@ h1 {
     overflow: hidden;
     transition: transform 0.3s, box-shadow 0.3s;
     position: relative;
-    background-color: var(--card-bg);
+    background-color: var(--card);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -247,7 +348,6 @@ h1 {
     opacity: 0.8;
 }
 
-/* Modal styles */
 .modal {
     display: none;
     position: fixed;
@@ -262,7 +362,7 @@ h1 {
 
 .modal-content {
     position: relative;
-    background-color: var(--card-bg);
+    background-color: var(--card);
     margin: 2% auto;
     padding: 25px;
     width: 90%;
@@ -283,10 +383,12 @@ h1 {
     font-weight: bold;
     cursor: pointer;
     z-index: 10;
+    background: none;
+    border: none;
 }
 
 .close:hover {
-    color: var(--text-color);
+    color: var(--text);
 }
 
 .preview-header {
@@ -308,7 +410,7 @@ h1 {
 }
 
 .file-type-badge {
-    background-color: var(--primary-color);
+    background-color: var(--primary);
     color: white;
     padding: 4px 10px;
     border-radius: 12px;
@@ -366,7 +468,7 @@ h1 {
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
+    background-color: var(--primary);
     color: white;
 }
 
@@ -386,16 +488,16 @@ h1 {
 }
 
 .btn-nav {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color) !important;
+    background-color: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
     padding: 10px 15px;
 }
 
 .btn-nav:hover {
-    background-color: var(--primary-color);
+    background-color: var(--primary);
     color: white;
-    border-color: var(--primary-color) !important;
+    border-color: var(--primary);
 }
 
 .btn-nav:disabled {
@@ -404,9 +506,9 @@ h1 {
 }
 
 .btn-nav:disabled:hover {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border-color: var(--border-color) !important;
+    background-color: var(--card);
+    color: var(--text);
+    border-color: var(--border);
     transform: none;
 }
 
@@ -422,7 +524,7 @@ footer {
 }
 
 footer a {
-    color: var(--primary-color);
+    color: var(--primary);
     text-decoration: none;
 }
 
@@ -451,7 +553,7 @@ footer a:hover {
     height: 50px;
     border: 5px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    border-top-color: var(--primary-color);
+    border-top-color: var(--primary);
     animation: spin 1s ease-in-out infinite;
     margin-bottom: 20px;
 }
@@ -460,7 +562,6 @@ footer a:hover {
     to { transform: rotate(360deg); }
 }
 
-/* Enhanced Loading Status */
 .loading-status {
     text-align: center;
     max-width: 500px;
@@ -539,7 +640,7 @@ footer a:hover {
 
 #status-progress {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), #81C784);
+    background: linear-gradient(90deg, var(--primary), #81C784);
     width: 0%;
     transition: width 0.3s ease;
     border-radius: 4px;
@@ -551,7 +652,7 @@ footer a:hover {
     font-weight: bold;
 }
 
-.loading {
+.loading, .error, .no-items {
     text-align: center;
     padding: 30px;
     color: #666;
@@ -559,20 +660,10 @@ footer a:hover {
 }
 
 .error {
-    text-align: center;
-    padding: 30px;
     color: #dc3545;
     font-weight: bold;
 }
 
-.no-items {
-    text-align: center;
-    padding: 30px;
-    color: #666;
-    font-style: italic;
-}
-
-/* Animation for items */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -582,7 +673,6 @@ footer a:hover {
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Toast notification */
 .toast {
     position: fixed;
     bottom: 20px;
@@ -603,26 +693,21 @@ footer a:hover {
     transform: translateY(0);
 }
 
-.toast.success {
-    background-color: var(--primary-color);
-}
+.toast.success { background-color: var(--primary); }
+.toast.error { background-color: #dc3545; }
 
-.toast.error {
-    background-color: #dc3545;
-}
-
-/* Responsive design */
 @media (max-width: 768px) {
-    body {
-        padding: 10px;
+    body { padding: 10px; }
+    header { padding: 15px; }
+    h1 { font-size: 1.8rem; }
+    
+    .header-top {
+        flex-direction: column;
+        gap: 15px;
     }
     
-    header {
-        padding: 15px;
-    }
-    
-    h1 {
-        font-size: 1.8rem;
+    .language-switcher {
+        order: -1; /* Move language switcher to top on mobile */
     }
     
     .header-controls {
@@ -630,9 +715,7 @@ footer a:hover {
         gap: 10px;
     }
     
-    .search-container {
-        max-width: 100%;
-    }
+    .search-container { max-width: 100%; }
     
     .category-content {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -641,9 +724,7 @@ footer a:hover {
     }
     
     .media-item img,
-    .video-thumbnail {
-        height: 150px;
-    }
+    .video-thumbnail { height: 150px; }
     
     .modal-content {
         width: 95%;
@@ -651,9 +732,7 @@ footer a:hover {
         padding: 20px;
     }
     
-    .action-buttons {
-        gap: 10px;
-    }
+    .action-buttons { gap: 10px; }
     
     .preview-header {
         flex-direction: column;
@@ -661,8 +740,12 @@ footer a:hover {
         text-align: center;
     }
     
-    #preview-filename {
-        max-width: 100%;
+    #preview-filename { max-width: 100%; }
+    
+    .language-dropdown {
+        left: 0;
+        right: auto;
+        min-width: 120px;
     }
 }
 
@@ -674,9 +757,7 @@ footer a:hover {
     }
     
     .media-item img,
-    .video-thumbnail {
-        height: 120px;
-    }
+    .video-thumbnail { height: 120px; }
     
     .stats-bar {
         flex-direction: column;

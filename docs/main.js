@@ -1,4 +1,7 @@
-// Biến toàn cục
+// Import translations
+import { LANGUAGES, TRANSLATIONS } from './translations.js';
+
+// Global state
 let mediaFiles = {
     images: [],
     videos: []
@@ -7,248 +10,427 @@ let mediaFiles = {
 let currentPreviewItem = null;
 let currentFilteredItems = [];
 let currentPreviewIndex = 0;
-const REPO_OWNER = 'sang765';
-const REPO_NAME = 'VNMemeCollection';
-const BASE_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main`;
-const CACHE_KEY = 'memeCollectionCache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+let isLoading = false;
 
-// Hàm khởi tạo
-document.addEventListener('DOMContentLoaded', function() {
-    initApp();
-});
+// Internationalization
+let currentLanguage = 'vi'; // Default to Vietnamese
 
-// Khởi tạo ứng dụng
+const CONFIG = {
+    REPO_OWNER: 'sang765',
+    REPO_NAME: 'VNMemeCollection',
+    BASE_URL: 'https://raw.githubusercontent.com/sang765/VNMemeCollection/main',
+    CACHE_KEY: 'memeCollectionCache',
+    CACHE_DURATION: 30 * 60 * 1000,
+    REQUEST_TIMEOUT: 10000,
+    LANGUAGE_KEY: 'memeCollectionLanguage'
+};
+
+// Initialize app
+document.addEventListener('DOMContentLoaded', initApp);
+
 function initApp() {
-    // Thiết lập theme từ localStorage
+    // Initialize language
+    initializeLanguage();
+    
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeButton(savedTheme);
     }
 
-    // Hiển thị thông báo loading
     showLoadingOverlay();
-    document.getElementById('image-content').innerHTML = '<p class="loading">Đang tải danh sách ảnh...</p>';
-    document.getElementById('video-content').innerHTML = '<p class="loading">Đang tải danh sách video...</p>';
-
-    // Thiết lập sự kiện
     setupEventListeners();
-
-    // Lấy danh sách ảnh và video
     loadMediaFiles();
-
-    // Hiển thị thời gian cập nhật cuối
-    document.getElementById('last-updated').textContent = new Date().toLocaleDateString('vi-VN');
+    updateLastUpdated();
+    
+    // Add global error handling
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
 }
 
-// Thiết lập các event listeners
-function setupEventListeners() {
-    // Modal events
-    setupModalEvents();
+// Language management functions
+function initializeLanguage() {
+    const savedLanguage = localStorage.getItem(CONFIG.LANGUAGE_KEY);
+    currentLanguage = savedLanguage || detectUserLanguage();
+    document.documentElement.lang = currentLanguage;
+    updateUIElements();
+}
+
+function detectUserLanguage() {
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith('vi')) return 'vi';
+    return 'en'; // Default to English
+}
+
+function translate(key, params = {}) {
+    let translation = TRANSLATIONS[currentLanguage][key] || TRANSLATIONS.en[key] || key;
     
-    // Search functionality
+    // Replace placeholders like {count}
+    Object.keys(params).forEach(param => {
+        translation = translation.replace(`{${param}}`, params[param]);
+    });
+    
+    return translation;
+}
+
+function changeLanguage(newLanguage) {
+    if (!TRANSLATIONS[newLanguage]) return;
+    
+    currentLanguage = newLanguage;
+    localStorage.setItem(CONFIG.LANGUAGE_KEY, newLanguage);
+    document.documentElement.lang = newLanguage;
+    updateUIElements();
+    updateLastUpdated();
+    
+    // Reload content to update dynamic text
+    updateDynamicContent();
+    
+    const languageName = LANGUAGES[newLanguage].name;
+    showToast(translate('languageSwitched', { language: languageName }), 'success');
+}
+
+function updateUIElements() {
+    // Update static text elements
+    const titleElement = document.querySelector('[data-i18n="title"]');
+    if (titleElement) titleElement.textContent = translate('title');
+    
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.placeholder = translate('searchPlaceholder');
+    
+    // Update category headers
+    const imageTitle = document.querySelector('#image-category .category-title');
+    if (imageTitle) imageTitle.textContent = translate('images');
+    
+    const videoTitle = document.querySelector('#video-category .category-title');
+    if (videoTitle) videoTitle.textContent = translate('videos');
+    
+    // Update loading messages
+    const loadingImages = document.querySelector('#image-content .loading');
+    if (loadingImages) loadingImages.textContent = translate('loadingImages');
+    
+    const loadingVideos = document.querySelector('#video-content .loading');
+    if (loadingVideos) loadingVideos.textContent = translate('loadingVideos');
+    
+    const loadingData = document.querySelector('#loading-overlay p');
+    if (loadingData) loadingData.textContent = translate('loadingData');
+    
+    // Update ARIA labels
+    const closeBtn = document.querySelector('.close');
+    if (closeBtn) closeBtn.setAttribute('aria-label', translate('close'));
+    
+    const prevBtn = document.getElementById('prev-btn');
+    if (prevBtn) prevBtn.setAttribute('aria-label', translate('previous'));
+    
+    const nextBtn = document.getElementById('next-btn');
+    if (nextBtn) nextBtn.setAttribute('aria-label', translate('next'));
+    
+    const downloadBtn = document.getElementById('download-btn');
+    if (downloadBtn) downloadBtn.setAttribute('aria-label', translate('download'));
+    
+    const copyUrlBtn = document.getElementById('copy-url-btn');
+    if (copyUrlBtn) copyUrlBtn.setAttribute('aria-label', translate('copyUrl'));
+    
+    // Update total count text
+    updateTotalCountText();
+}
+
+function updateTotalCountText() {
+    const totalText = document.getElementById('total-count-text');
+    if (totalText) {
+        const totalCount = mediaFiles.images.length + mediaFiles.videos.length;
+        totalText.innerHTML = `${translate('totalCount').replace('{count}', totalCount)} <span id="total-count">${totalCount}</span>`;
+    }
+}
+
+function updateDynamicContent() {
+    // Update count displays
+    document.getElementById('image-count').textContent = mediaFiles.images.length;
+    document.getElementById('video-count').textContent = mediaFiles.videos.length;
+
+    const totalCount = mediaFiles.images.length + mediaFiles.videos.length;
+    console.log('updateDynamicContent: setting total-count.textContent to:', totalCount);
+    document.getElementById('total-count').textContent = totalCount;
+    
+    // Update category content messages
+    if (mediaFiles.images.length === 0) {
+        const imageContent = document.getElementById('image-content');
+        if (imageContent.innerHTML.includes('Chưa có') || imageContent.innerHTML.includes('No images')) {
+            imageContent.innerHTML = `<p class="no-items">${translate('noImages')}</p>`;
+        }
+    }
+    
+    if (mediaFiles.videos.length === 0) {
+        const videoContent = document.getElementById('video-content');
+        if (videoContent.innerHTML.includes('Chưa có') || videoContent.innerHTML.includes('No videos')) {
+            videoContent.innerHTML = `<p class="no-items">${translate('noVideos')}</p>`;
+        }
+    }
+}
+
+function updateLastUpdated() {
+    const now = new Date();
+    const dateString = currentLanguage === 'vi' 
+        ? now.toLocaleDateString('vi-VN')
+        : now.toLocaleDateString('en-US');
+    document.getElementById('last-updated').textContent = `${translate('lastUpdated')}: ${dateString}`;
+}
+
+function handleGlobalError(e) {
+    console.error('Global error:', e.error);
+    if (!isLoading) {
+        showToast('Application error occurred', 'error');
+    }
+}
+
+function handleUnhandledRejection(e) {
+    console.error('Unhandled promise rejection:', e.reason);
+    if (!isLoading) {
+        showToast('Application error occurred', 'error');
+    }
+    e.preventDefault();
+}
+
+let searchTimeout;
+
+function setupEventListeners() {
+    setupModalEvents();
+    setupLanguageSwitcher();
+    
     const searchInput = document.getElementById('search-input');
     const clearSearch = document.getElementById('clear-search');
     
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
+    searchInput.addEventListener('input', e => {
+        const searchTerm = e.target.value.toLowerCase();
         clearSearch.style.display = searchTerm ? 'block' : 'none';
-        filterMediaItems(searchTerm);
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => filterMediaItems(searchTerm), 300);
     });
     
-    clearSearch.addEventListener('click', function() {
+    clearSearch.addEventListener('click', () => {
         searchInput.value = '';
-        this.style.display = 'none';
+        clearSearch.style.display = 'none';
         filterMediaItems('');
     });
     
-    // Dark mode toggle
     document.getElementById('toggle-dark-mode').addEventListener('click', toggleDarkMode);
     
-    // Refresh button
-    document.getElementById('refresh-btn').addEventListener('click', function() {
-        // Xóa cache và tải lại
-        localStorage.removeItem(CACHE_KEY);
+    document.getElementById('refresh-btn').addEventListener('click', async () => {
+        if (isLoading) return;
+        
+        localStorage.removeItem(CONFIG.CACHE_KEY);
         showLoadingOverlay();
-        loadMediaFiles();
-        showToast('Đã làm mới dữ liệu', 'success');
+        await loadMediaFiles();
+        showToast(translate('refreshed'), 'success');
     });
     
-    // Navigation buttons in preview
     document.getElementById('prev-btn').addEventListener('click', showPrevItem);
     document.getElementById('next-btn').addEventListener('click', showNextItem);
     
-    // Keyboard shortcuts
     document.addEventListener('keydown', handleGlobalKeyPress);
+    
+    // Performance: Use passive event listeners for scroll
+    window.addEventListener('scroll', handleScroll, { passive: true });
 }
 
-// Tải danh sách media files
+function setupLanguageSwitcher() {
+    const languageToggle = document.getElementById('language-toggle');
+    const languageDropdown = document.getElementById('language-dropdown');
+    const languageOptions = document.querySelectorAll('.language-option');
+    
+    // Toggle dropdown
+    languageToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        languageToggle.classList.toggle('active');
+        languageDropdown.classList.toggle('show');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        languageToggle.classList.remove('active');
+        languageDropdown.classList.remove('show');
+    });
+    
+    // Handle language selection
+    languageOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const selectedLang = option.dataset.lang;
+            if (selectedLang !== currentLanguage) {
+                changeLanguage(selectedLang);
+                updateLanguageSwitcherUI();
+            }
+            languageToggle.classList.remove('active');
+            languageDropdown.classList.remove('show');
+        });
+    });
+    
+    // Update initial UI state
+    updateLanguageSwitcherUI();
+}
+
+function updateLanguageSwitcherUI() {
+    const languageToggle = document.getElementById('language-toggle');
+    const languageOptions = document.querySelectorAll('.language-option');
+    const languageFlag = languageToggle.querySelector('.language-flag');
+    
+    // Update flag based on current language
+    languageFlag.textContent = LANGUAGES[currentLanguage].flag;
+    
+    // Update active option
+    languageOptions.forEach(option => {
+        if (option.dataset.lang === currentLanguage) {
+            option.classList.add('active');
+        } else {
+            option.classList.remove('active');
+        }
+    });
+}
+
 async function loadMediaFiles() {
+    if (isLoading) return;
+    
+    isLoading = true;
+    
     try {
-        // Kiểm tra cache trước
         const cachedData = getCachedData();
         if (cachedData) {
             mediaFiles = cachedData;
             updateMediaDisplay();
             hideLoadingOverlay();
-            showToast('Đã tải dữ liệu từ bộ nhớ đệm', 'success');
+            showToast(translate('loadedFromCache'), 'success');
             return;
         }
         
-        // Lấy dữ liệu mới từ API
         const [images, videos] = await Promise.all([
             getFilesFromGitHub('images'),
             getFilesFromGitHub('videos')
         ]);
         
         mediaFiles = { images, videos };
-        
-        // Lưu vào cache
         cacheData(mediaFiles);
-        
-        // Cập nhật hiển thị
         updateMediaDisplay();
         hideLoadingOverlay();
-        showToast('Đã tải dữ liệu mới thành công', 'success');
+        showToast(translate('dataLoaded'), 'success');
         
     } catch (error) {
-        console.error('Lỗi khi tải danh sách media:', error);
-        document.getElementById('image-content').innerHTML = '<p class="error">Không thể tải danh sách ảnh</p>';
-        document.getElementById('video-content').innerHTML = '<p class="error">Không thể tải danh sách video</p>';
+        console.error('Error loading media files:', error);
+        document.getElementById('image-content').innerHTML = `<p class="error">${translate('loadFailed', { type: translate('images').toLowerCase() })}</p>`;
+        document.getElementById('video-content').innerHTML = `<p class="error">${translate('loadFailed', { type: translate('videos').toLowerCase() })}</p>`;
         hideLoadingOverlay();
-        showToast('Lỗi khi tải dữ liệu', 'error');
+        showToast(translate('appError'), 'error');
+    } finally {
+        isLoading = false;
     }
 }
 
-// Lấy dữ liệu từ cache
 function getCachedData() {
-    const cached = localStorage.getItem(CACHE_KEY);
+    const cached = localStorage.getItem(CONFIG.CACHE_KEY);
     if (!cached) return null;
     
     const { data, timestamp } = JSON.parse(cached);
-    
-    // Kiểm tra nếu cache vẫn còn hiệu lực
-    if (Date.now() - timestamp < CACHE_DURATION) {
-        return data;
-    }
-    
-    return null;
+    return Date.now() - timestamp < CONFIG.CACHE_DURATION ? data : null;
 }
 
-// Lưu dữ liệu vào cache
 function cacheData(data) {
-    const cache = {
+    localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({
         data,
         timestamp: Date.now()
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    }));
 }
 
-// Cập nhật hiển thị media
 function updateMediaDisplay() {
     document.getElementById('image-count').textContent = mediaFiles.images.length;
     document.getElementById('video-count').textContent = mediaFiles.videos.length;
-    
-    const totalCount = mediaFiles.images.length + mediaFiles.videos.length;
-    document.getElementById('total-count').textContent = totalCount;
+    document.getElementById('total-count').textContent =
+        mediaFiles.images.length + mediaFiles.videos.length;
     
     displayMediaItems('image', mediaFiles.images);
     displayMediaItems('video', mediaFiles.videos);
     
-    // Tự động mở rộng danh mục
     setTimeout(() => {
         toggleCategory('image', false);
         toggleCategory('video', false);
     }, 100);
 }
 
-// Lấy danh sách file từ GitHub API
 async function getFilesFromGitHub(folder) {
     try {
-        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${folder}?${Date.now()}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+        
+        const response = await fetch(
+            `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${folder}?t=${Date.now()}`,
+            { signal: controller.signal }
+        );
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
         
-        // Lọc ra chỉ các file (loại bỏ thư mục con)
-        const files = data.filter(item => item.type === 'file')
-                         .map(item => item.name)
-                         .filter(name => {
-                             // Lọc theo định dạng file
-                             if (folder === 'images') {
-                                 return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name);
-                             } else if (folder === 'videos') {
-                                 return /\.(mp4|webm|mov|avi|mkv|wmv|flv)$/i.test(name);
-                             }
-                             return false;
-                         });
-        
-        return files;
+        const fileTypes = folder === 'images' 
+            ? /\.(jpg|jpeg|png|gif|webp|bmp)$/i
+            : /\.(mp4|webm|mov|avi|mkv|wmv|flv)$/i;
+            
+        return data.filter(item => item.type === 'file')
+                  .map(item => item.name)
+                  .filter(name => fileTypes.test(name));
+                  
     } catch (error) {
-        console.error(`Lỗi khi lấy danh sách file từ ${folder}:`, error);
-        showToast(`Lỗi khi tải ${folder === 'images' ? 'ảnh' : 'video'}`, 'error');
+        if (error.name === 'AbortError') {
+            console.error(`Timeout fetching ${folder}`);
+            showToast(translate('timeoutError'), 'error');
+        } else {
+            console.error(`Error fetching ${folder}:`, error);
+            showToast(translate('loadFailed', { type: translate(folder === 'images' ? 'images' : 'videos') }), 'error');
+        }
         return [];
     }
 }
 
-// Hiển thị media items
 function displayMediaItems(type, items) {
     const container = document.getElementById(`${type}-content`);
     
     if (items.length === 0) {
-        container.innerHTML = `<p class="no-items">Chưa có ${type === 'image' ? 'ảnh' : 'video'} nào</p>`;
+        const noItemsText = type === 'image' ? translate('noImages') : translate('noVideos');
+        container.innerHTML = `<p class="no-items">${noItemsText}</p>`;
         return;
     }
     
     container.innerHTML = '';
-    
-    items.forEach((item, index) => {
-        const mediaElement = createMediaElement(type, item);
-        container.appendChild(mediaElement);
+    items.forEach(item => {
+        container.appendChild(createMediaElement(type, item));
     });
 }
 
-// Tạo media element
 function createMediaElement(type, filename) {
     const div = document.createElement('div');
     div.className = 'media-item';
     div.dataset.filename = filename;
     div.dataset.type = type;
     
-    // Thêm tên file (sẽ hiển thị khi hover)
     const filenameSpan = document.createElement('span');
     filenameSpan.className = 'filename';
     filenameSpan.textContent = filename;
     div.appendChild(filenameSpan);
     
     if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = `${BASE_URL}/images/${encodeURIComponent(filename)}`;
-        img.alt = filename;
-        img.loading = 'lazy';
-        img.onerror = function() {
-            this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI5MCUiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5LMO0gY8O1IMSR4bqhbmc8L3RleHQ+PC9zdmc+';
-        };
+        const img = createOptimizedImage(filename);
         div.appendChild(img);
     } else {
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.className = 'video-thumbnail';
         
-        // Thử tìm thumbnail (cùng tên với đuôi jpg/png)
         const thumbnailName = filename.split('.')[0];
-        const img = document.createElement('img');
-        img.src = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.jpg`;
-        img.alt = filename;
-        img.onerror = function() {
-            // Nếu không có thumbnail jpg, thử png
-            this.src = `${BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.png`;
-            this.onerror = function() {
-                // Nếu không có thumbnail nào, hiển thị placeholder
-                this.style.display = 'none';
+        const img = createOptimizedImage(`${thumbnailName}.jpg`, true);
+        img.onerror = () => {
+            img.src = `${CONFIG.BASE_URL}/videos/${encodeURIComponent(thumbnailName)}.png`;
+            img.onerror = () => {
+                img.style.display = 'none';
                 const iconDiv = document.createElement('div');
                 iconDiv.className = 'video-icon';
                 iconDiv.innerHTML = '▶';
@@ -264,9 +446,53 @@ function createMediaElement(type, filename) {
     return div;
 }
 
-// Mở preview
+function createOptimizedImage(src, isVideoThumb = false) {
+    const img = document.createElement('img');
+    const basePath = isVideoThumb ? `${CONFIG.BASE_URL}/videos/` : `${CONFIG.BASE_URL}/images/`;
+    img.src = basePath + encodeURIComponent(src);
+    img.alt = src;
+    img.loading = 'lazy';
+    
+    // Add image optimization attributes
+    img.decoding = 'async';
+    img.fetchpriority = 'low';
+    
+    // Add lazy loading class for Intersection Observer
+    img.classList.add('lazy');
+    img.dataset.src = img.src;
+    img.src = ''; // Clear src initially for lazy loading
+    
+    img.onerror = () => {
+        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI5MCUiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIGR5PSIuM2VtIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DYW5ub3QgbG9hZDwvdGV4dD48L3N2Zz4=';
+    };
+    
+    // Add intersection observer for lazy loading
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const image = entry.target;
+                    image.src = image.dataset.src;
+                    image.classList.remove('lazy');
+                    observer.unobserve(image);
+                }
+            });
+        }, {
+            rootMargin: '50px 0px', // Load images 50px before they enter viewport
+            threshold: 0.1
+        });
+        
+        imageObserver.observe(img);
+    } else {
+        // Fallback for browsers without IntersectionObserver
+        img.src = img.dataset.src;
+        img.classList.remove('lazy');
+    }
+    
+    return img;
+}
+
 function openPreview(type, filename) {
-    // Lấy danh sách items hiện tại (đã filter nếu có)
     const items = currentFilteredItems.length > 0 ? currentFilteredItems : 
                  type === 'image' ? mediaFiles.images : mediaFiles.videos;
     
@@ -280,14 +506,13 @@ function openPreview(type, filename) {
     
     container.innerHTML = '';
     filenameElement.textContent = filename;
-    filetypeElement.textContent = type === 'image' ? 'Hình ảnh' : 'Video';
+    filetypeElement.textContent = translate(type);
     
-    // Cập nhật trạng thái nút navigation
     updateNavButtons();
     
     if (type === 'image') {
         const img = document.createElement('img');
-        img.src = `${BASE_URL}/images/${encodeURIComponent(filename)}`;
+        img.src = `${CONFIG.BASE_URL}/images/${encodeURIComponent(filename)}`;
         img.alt = filename;
         container.appendChild(img);
     } else {
@@ -295,7 +520,7 @@ function openPreview(type, filename) {
         videoContainer.className = 'video-container';
         
         const video = document.createElement('video');
-        video.src = `${BASE_URL}/videos/${encodeURIComponent(filename)}`;
+        video.src = `${CONFIG.BASE_URL}/videos/${encodeURIComponent(filename)}`;
         video.controls = true;
         video.autoplay = true;
         
@@ -304,13 +529,11 @@ function openPreview(type, filename) {
     }
     
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden'; // Ngăn scroll background
+    document.body.style.overflow = 'hidden';
     
-    // Tạm dừng tất cả các GIF
     pauseAllGIFs();
 }
 
-// Cập nhật nút navigation
 function updateNavButtons() {
     const items = currentFilteredItems.length > 0 ? currentFilteredItems : 
                  currentPreviewItem.type === 'image' ? mediaFiles.images : mediaFiles.videos;
@@ -322,63 +545,57 @@ function updateNavButtons() {
     nextBtn.disabled = currentPreviewIndex >= items.length - 1;
 }
 
-// Hiển thị item trước đó
 function showPrevItem() {
     const items = currentFilteredItems.length > 0 ? currentFilteredItems : 
                  currentPreviewItem.type === 'image' ? mediaFiles.images : mediaFiles.videos;
     
     if (currentPreviewIndex > 0) {
         currentPreviewIndex--;
-        const filename = items[currentPreviewIndex];
-        openPreview(currentPreviewItem.type, filename);
+        openPreview(currentPreviewItem.type, items[currentPreviewIndex]);
     }
 }
 
-// Hiển thị item tiếp theo
 function showNextItem() {
     const items = currentFilteredItems.length > 0 ? currentFilteredItems : 
                  currentPreviewItem.type === 'image' ? mediaFiles.images : mediaFiles.videos;
     
     if (currentPreviewIndex < items.length - 1) {
         currentPreviewIndex++;
-        const filename = items[currentPreviewIndex];
-        openPreview(currentPreviewItem.type, filename);
+        openPreview(currentPreviewItem.type, items[currentPreviewIndex]);
     }
 }
 
-// Đóng preview
 function closePreview() {
     const modal = document.getElementById('preview-modal');
     modal.style.display = 'none';
-    document.body.style.overflow = ''; // Cho phép scroll lại
+    document.body.style.overflow = '';
     
-    // Dừng video nếu đang phát
     const video = document.querySelector('#preview-container video');
-    if (video) {
-        video.pause();
-    }
+    if (video) video.pause();
     
-    // Tiếp tục phát tất cả các GIF
     resumeAllGIFs();
 }
 
-// Xử lý phím tắt toàn cục
 function handleGlobalKeyPress(e) {
     const modal = document.getElementById('preview-modal');
     
     if (modal.style.display === 'block') {
-        // Chỉ xử lý nếu modal đang mở
-        if (e.key === 'Escape') {
-            closePreview();
-        } else if (e.key === 'ArrowLeft') {
-            showPrevItem();
-        } else if (e.key === 'ArrowRight') {
-            showNextItem();
-        }
+        if (e.key === 'Escape') closePreview();
+        else if (e.key === 'ArrowLeft') showPrevItem();
+        else if (e.key === 'ArrowRight') showNextItem();
     }
 }
 
-// Thiết lập sự kiện cho modal
+// Performance optimization for scroll handling
+function handleScroll() {
+    // Debounced scroll handler for performance
+    if (window.requestIdleCallback) {
+        requestIdleCallback(() => {
+            // Handle any scroll-based operations here
+        });
+    }
+}
+
 function setupModalEvents() {
     const modal = document.getElementById('preview-modal');
     const closeBtn = document.querySelector('.close');
@@ -387,18 +604,15 @@ function setupModalEvents() {
     
     closeBtn.addEventListener('click', closePreview);
     
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closePreview();
-        }
+    modal.addEventListener('click', e => {
+        if (e.target === modal) closePreview();
     });
     
-    // Xử lý nút tải xuống
     downloadBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
             const url = currentPreviewItem.type === 'image' 
-                ? `${BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
-                : `${BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
+                ? `${CONFIG.BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
+                : `${CONFIG.BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
             
             const link = document.createElement('a');
             link.href = url;
@@ -407,34 +621,30 @@ function setupModalEvents() {
             link.click();
             document.body.removeChild(link);
             
-            showToast('Đã bắt đầu tải xuống', 'success');
+            showToast(translate('downloadStarted'), 'success');
         }
     });
     
-    // Xử lý nút sao chép URL
     copyUrlBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
             const url = currentPreviewItem.type === 'image' 
-                ? `${BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
-                : `${BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
+                ? `${CONFIG.BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
+                : `${CONFIG.BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
             
             navigator.clipboard.writeText(url)
-                .then(() => {
-                    showToast('Đã sao chép URL vào clipboard', 'success');
-                })
+                .then(() => showToast(translate('urlCopied'), 'success'))
                 .catch(err => {
-                    console.error('Lỗi khi sao chép URL: ', err);
+                    console.error('Error copying URL: ', err);
                     
-                    // Fallback cho trình duyệt không hỗ trợ clipboard API
                     const tempTextArea = document.createElement('textarea');
                     tempTextArea.value = url;
                     document.body.appendChild(tempTextArea);
                     tempTextArea.select();
                     try {
                         document.execCommand('copy');
-                        showToast('Đã sao chép URL vào clipboard', 'success');
+                        showToast(translate('urlCopied'), 'success');
                     } catch (e) {
-                        showToast('Không thể sao chép URL', 'error');
+                        showToast(translate('urlCopyFailed'), 'error');
                     }
                     document.body.removeChild(tempTextArea);
                 });
@@ -442,7 +652,6 @@ function setupModalEvents() {
     });
 }
 
-// Lọc media items theo từ khóa
 function filterMediaItems(searchTerm) {
     const allMediaItems = document.querySelectorAll('.media-item');
     currentFilteredItems = [];
@@ -451,13 +660,11 @@ function filterMediaItems(searchTerm) {
     
     allMediaItems.forEach(item => {
         const filename = item.dataset.filename.toLowerCase();
-        const type = item.dataset.type;
         
         if (filename.includes(searchTerm)) {
             item.style.display = 'block';
             visibleCount++;
             
-            // Thêm vào danh sách filtered để navigation
             if (searchTerm) {
                 currentFilteredItems.push(item.dataset.filename);
             }
@@ -466,19 +673,17 @@ function filterMediaItems(searchTerm) {
         }
     });
     
-    // Cập nhật thống kê
     const statsElement = document.getElementById('filter-stats');
     const totalCount = document.getElementById('total-count').textContent;
     
     if (searchTerm) {
         statsElement.style.display = 'inline';
-        statsElement.textContent = `Đang hiển thị: ${visibleCount}/${totalCount}`;
+        statsElement.textContent = translate('showing', { visible: visibleCount, total: totalCount });
     } else {
         statsElement.style.display = 'none';
     }
 }
 
-// Thu gọn/mở rộng danh mục
 function toggleCategory(type, animate = true) {
     const content = document.getElementById(`${type}-content`);
     const icon = document.querySelector(`#${type}-category .toggle-icon`);
@@ -486,35 +691,24 @@ function toggleCategory(type, animate = true) {
     if (content.style.display === 'none' || !content.style.display) {
         content.style.display = 'grid';
         icon.textContent = '▼';
-        if (animate) {
-            content.style.animation = 'fadeIn 0.3s ease-out';
-        }
+        if (animate) content.style.animation = 'fadeIn 0.3s ease-out';
     } else {
         content.style.display = 'none';
         icon.textContent = '►';
     }
 }
 
-// Tạm dừng tất cả các GIF
 function pauseAllGIFs() {
     const allImages = document.querySelectorAll('.media-item img');
-    console.log('Found images to check:', allImages.length);
     
-    allImages.forEach((img, index) => {
-        // Kiểm tra nếu là GIF (dựa vào file extension)
+    allImages.forEach(img => {
         if (img.src.toLowerCase().includes('.gif')) {
-            console.log('Pausing GIF:', img.src);
-            
-            // Lưu trạng thái hiện tại
             img.dataset.originalSrc = img.src;
             img.dataset.isPaused = 'true';
             
-            // Sử dụng approach đơn giản: thay thế src bằng data URL của frame hiện tại
             if (img.complete && img.naturalWidth > 0) {
-                // Image đã load xong, có thể freeze ngay
                 freezeGIF(img);
             } else {
-                // Image chưa load xong, đợi load xong rồi freeze
                 img.addEventListener('load', () => {
                     if (img.dataset.isPaused === 'true') {
                         freezeGIF(img);
@@ -525,57 +719,37 @@ function pauseAllGIFs() {
     });
 }
 
-// Helper function để freeze GIF
 function freezeGIF(img) {
     try {
-        // Tạo canvas để capture frame hiện tại
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
-        
-        // Draw image hiện tại vào canvas
         ctx.drawImage(img, 0, 0);
         
-        // Thay thế src bằng data URL
         const dataURL = canvas.toDataURL('image/png');
         img.src = dataURL;
-        
-        console.log('GIF paused successfully:', img.src);
     } catch (error) {
         console.error('Error pausing GIF:', error);
-        // Fallback: ẩn image thay vì freeze
         img.style.opacity = '0';
     }
 }
 
-// Tiếp tục phát tất cả các GIF
 function resumeAllGIFs() {
     const allImages = document.querySelectorAll('.media-item img');
-    console.log('Resuming GIFs, found images:', allImages.length);
     
     allImages.forEach(img => {
-        // Kiểm tra nếu img đã được tạm dừng
         if (img.dataset.originalSrc && img.dataset.isPaused === 'true') {
-            console.log('Resuming GIF:', img.dataset.originalSrc);
-            
-            // Khôi phục src gốc
             img.src = img.dataset.originalSrc;
-            
-            // Reset styles
             img.style.opacity = '';
             
-            // Xóa dữ liệu tạm dừng
             delete img.dataset.originalSrc;
             delete img.dataset.isPaused;
-            
-            console.log('GIF resumed successfully');
         }
     });
 }
 
-// Chuyển đổi chế độ dark/light
 function toggleDarkMode() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -584,22 +758,18 @@ function toggleDarkMode() {
     localStorage.setItem('theme', newTheme);
     
     updateThemeButton(newTheme);
-    showToast(`Đã chuyển sang chế độ ${newTheme === 'dark' ? 'tối' : 'sáng'}`, 'success');
+    const modeText = newTheme === 'dark' ? translate('darkMode') : translate('lightMode');
+    showToast(translate('switchedTo', { mode: modeText }), 'success');
 }
 
-// Cập nhật nút chuyển đổi theme
 function updateThemeButton(theme) {
     const button = document.getElementById('toggle-dark-mode');
     button.textContent = theme === 'dark' ? '☀️' : '🌙';
 }
 
-// Hiển thị toast thông báo
 function showToast(message, type = 'success') {
-    // Kiểm tra nếu đã có toast thì xóa
     const existingToast = document.querySelector('.toast');
-    if (existingToast) {
-        existingToast.remove();
-    }
+    if (existingToast) existingToast.remove();
     
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -607,12 +777,8 @@ function showToast(message, type = 'success') {
     
     document.body.appendChild(toast);
     
-    // Hiển thị toast
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
+    setTimeout(() => toast.classList.add('show'), 10);
     
-    // Tự động ẩn sau 3 giây
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => {
@@ -623,12 +789,10 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Hiển thị overlay loading
 function showLoadingOverlay() {
     document.getElementById('loading-overlay').style.display = 'flex';
 }
 
-// Ẩn overlay loading
 function hideLoadingOverlay() {
     document.getElementById('loading-overlay').style.display = 'none';
 }
@@ -636,15 +800,13 @@ function hideLoadingOverlay() {
 
 
 
-// Xử lý lỗi toàn cục
-window.addEventListener('error', function(e) {
-    console.error('Lỗi toàn cục:', e.error);
-    showToast('Đã xảy ra lỗi trong ứng dụng', 'error');
+window.addEventListener('error', e => {
+    console.error('Global error:', e.error);
+    showToast('Application error occurred', 'error');
 });
 
-// Xử lý promise rejections
-window.addEventListener('unhandledrejection', function(e) {
+window.addEventListener('unhandledrejection', e => {
     console.error('Promise rejection:', e.reason);
-    showToast('Đã xảy ra lỗi trong ứng dụng', 'error');
+    showToast('Application error occurred', 'error');
     e.preventDefault();
 });

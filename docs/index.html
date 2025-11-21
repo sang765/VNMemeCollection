@@ -3,85 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Bộ sưu tập meme Việt Nam - Tổng hợp các meme hình ảnh và video hài hước">
+    <meta name="description" content="Vietnamese Meme Collection - Funny images and videos">
+    <meta name="keywords" content="meme, vietnamese, funny, images, videos, collection">
+    <meta name="author" content="SegEyy">
+    
+    <!-- Performance optimization -->
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="msapplication-TileColor" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://api.github.com" crossorigin>
+    <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+    
+    <!-- Resource hints -->
+    <link rel="dns-prefetch" href="//api.github.com">
+    <link rel="dns-prefetch" href="//raw.githubusercontent.com">
+    
+    <!-- Caching optimization -->
+    <meta http-equiv="Cache-Control" content="max-age=1800, public">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Pragma" content="cache">
+    
     <title>SegEyy Meme Collection</title>
     <link rel="stylesheet" href="index.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤣</text></svg>">
 </head>
 <body>
     <header>
-        <h1>SegEyy Meme Collection</h1>
+        <div class="header-top">
+            <h1 data-i18n="title">Bộ sưu tập SegEyy</h1>
+        </div>
         <div class="header-controls">
             <div class="search-container">
-                <input type="text" id="search-input" placeholder="Tìm kiếm meme...">
+                <input type="text" id="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="Search memes...">
                 <button id="clear-search" style="display: none;">×</button>
             </div>
             <div class="top-button" id="button">
                 <button id="toggle-dark-mode">🌙</button>
                 <button id="refresh-btn">🔄</button>
             </div>
+            <div class="language-switcher">
+                <button id="language-toggle" aria-label="Switch language">
+                    <span class="language-flag">🇻🇳</span>
+                    <span class="language-arrow">▼</span>
+                </button>
+                <div id="language-dropdown" class="language-dropdown">
+                    <button class="language-option" data-lang="vi">
+                        <span class="flag">🇻🇳</span>
+                        <span class="name">Tiếng Việt</span>
+                    </button>
+                    <button class="language-option" data-lang="en">
+                        <span class="flag">🇺🇸</span>
+                        <span class="name">English</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </header>
     
     <main>
         <div class="stats-bar">
-            <span>Tổng số: <span id="total-count">0</span> meme</span>
+            <span id="total-count-text">Total: <span id="total-count">0</span> memes</span>
             <span id="filter-stats" style="display: none;"></span>
         </div>
         
         <div class="categories">
-            <div class="category" id="image-category">
+            <section class="category" id="image-category">
                 <h2 class="category-header" onclick="toggleCategory('image')">
-                    <span class="category-title">Ảnh</span>
+                    <span class="category-title" data-i18n="images">Images</span>
                     <span class="category-count">(<span id="image-count">0</span>)</span>
                     <span class="toggle-icon">▼</span>
                 </h2>
-                <div class="category-content" id="image-content"></div>
-            </div>
+                <div class="category-content" id="image-content">
+                    <p class="loading" data-i18n="loadingImages">Loading images...</p>
+                </div>
+            </section>
             
-            <div class="category" id="video-category">
+            <section class="category" id="video-category">
                 <h2 class="category-header" onclick="toggleCategory('video')">
-                    <span class="category-title">Video</span>
+                    <span class="category-title" data-i18n="videos">Videos</span>
                     <span class="category-count">(<span id="video-count">0</span>)</span>
                     <span class="toggle-icon">▼</span>
                 </h2>
-                <div class="category-content" id="video-content"></div>
-            </div>
+                <div class="category-content" id="video-content">
+                    <p class="loading" data-i18n="loadingVideos">Loading videos...</p>
+                </div>
+            </section>
         </div>
         
         <div id="loading-overlay">
             <div class="spinner"></div>
-            <p>Đang tải dữ liệu...</p>
+            <p data-i18n="loadingData">Loading data...</p>
         </div>
     </main>
     
-    <!-- Popup Preview -->
-    <div id="preview-modal" class="modal">
+    <dialog id="preview-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <button class="close" data-i18n-aria-label="close" aria-label="Close">&times;</button>
             <div class="preview-header">
                 <h3 id="preview-filename"></h3>
                 <span class="file-type-badge" id="preview-filetype"></span>
             </div>
             <div id="preview-container"></div>
             <div class="action-buttons">
-                <button id="prev-btn" class="btn-nav">←</button>
-                <button id="download-btn" class="btn-primary">
+                <button id="prev-btn" class="btn-nav" data-i18n-aria-label="previous" aria-label="Previous">←</button>
+                <button id="download-btn" class="btn-primary" data-i18n-aria-label="download" aria-label="Download">
                     <span class="btn-icon">📥</span>
                 </button>
-                <button id="copy-url-btn" class="btn-secondary">
+                <button id="copy-url-btn" class="btn-secondary" data-i18n-aria-label="copyUrl" aria-label="Copy URL">
                     <span class="btn-icon">🔗</span>
                 </button>
-                <button id="next-btn" class="btn-nav">→</button>
+                <button id="next-btn" class="btn-nav" data-i18n-aria-label="next" aria-label="Next">→</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
-</body>
-</html>
     <footer>
-        <p>Powered by <a href="https://github.com/sang765/VNMemeCollection" target="_blank">VNMemeCollection</a> • <span id="last-updated"></span></p>
+        <p>Powered by <a href="https://github.com/sang765/VNMemeCollection" target="_blank" rel="noopener">VNMemeCollection</a> • <span id="last-updated"></span></p>
     </footer>
-    <script src="main.js"></script>
+    
+    <script type="module" src="main.js"></script>
 </body>
 </html>
