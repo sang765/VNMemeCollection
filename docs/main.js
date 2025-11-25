@@ -596,6 +596,32 @@ function handleScroll() {
     }
 }
 
+async function downloadFile(url, filename) {
+    try {
+        showToast(translate('downloading'), 'info');
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up the blob URL after a short delay
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+        showToast(translate('downloadStarted'), 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        showToast(translate('downloadFailed'), 'error');
+    }
+}
+
 function setupModalEvents() {
     const modal = document.getElementById('preview-modal');
     const closeBtn = document.querySelector('.close');
@@ -610,18 +636,11 @@ function setupModalEvents() {
     
     downloadBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
-            const url = currentPreviewItem.type === 'image' 
+            const url = currentPreviewItem.type === 'image'
                 ? `${CONFIG.BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
                 : `${CONFIG.BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = currentPreviewItem.filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            showToast(translate('downloadStarted'), 'success');
+
+            downloadFile(url, currentPreviewItem.filename);
         }
     });
     
