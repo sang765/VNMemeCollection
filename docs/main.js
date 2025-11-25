@@ -129,7 +129,10 @@ function updateUIElements() {
     
     const copyUrlBtn = document.getElementById('copy-url-btn');
     if (copyUrlBtn) copyUrlBtn.setAttribute('aria-label', translate('copyUrl'));
-    
+
+    const downloadAllBtn = document.getElementById('download-all-btn');
+    if (downloadAllBtn) downloadAllBtn.setAttribute('aria-label', translate('downloadAll'));
+
     // Update total count text
     updateTotalCountText();
 }
@@ -217,11 +220,16 @@ function setupEventListeners() {
     
     document.getElementById('refresh-btn').addEventListener('click', async () => {
         if (isLoading) return;
-        
+
         localStorage.removeItem(CONFIG.CACHE_KEY);
         showLoadingOverlay();
         await loadMediaFiles();
         showToast(translate('refreshed'), 'success');
+    });
+
+    document.getElementById('download-all-btn').addEventListener('click', () => {
+        if (isLoading) return;
+        showDownloadAllModal();
     });
     
     document.getElementById('prev-btn').addEventListener('click', showPrevItem);
@@ -596,9 +604,9 @@ function handleScroll() {
     }
 }
 
-async function downloadFile(url, filename) {
+async function downloadFile(url, filename, showToasts = true) {
     try {
-        showToast(translate('downloading'), 'info');
+        if (showToasts) showToast(translate('downloading'), 'info');
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -615,10 +623,11 @@ async function downloadFile(url, filename) {
         // Clean up the blob URL after a short delay
         setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
-        showToast(translate('downloadStarted'), 'success');
+        if (showToasts) showToast(translate('downloadStarted'), 'success');
     } catch (error) {
         console.error('Download error:', error);
-        showToast(translate('downloadFailed'), 'error');
+        if (showToasts) showToast(translate('downloadFailed'), 'error');
+        throw error; // Re-throw for download all to handle
     }
 }
 
@@ -627,6 +636,12 @@ function setupModalEvents() {
     const closeBtn = document.querySelector('.close');
     const downloadBtn = document.getElementById('download-btn');
     const copyUrlBtn = document.getElementById('copy-url-btn');
+
+    // Download all modal events
+    const downloadAllModal = document.getElementById('download-all-modal');
+    const downloadAllCloseBtn = downloadAllModal.querySelector('.close');
+    const cancelDownloadBtn = document.getElementById('cancel-download-btn');
+    const confirmDownloadBtn = document.getElementById('confirm-download-btn');
     
     closeBtn.addEventListener('click', closePreview);
     
@@ -646,15 +661,15 @@ function setupModalEvents() {
     
     copyUrlBtn.addEventListener('click', () => {
         if (currentPreviewItem) {
-            const url = currentPreviewItem.type === 'image' 
+            const url = currentPreviewItem.type === 'image'
                 ? `${CONFIG.BASE_URL}/images/${encodeURIComponent(currentPreviewItem.filename)}`
                 : `${CONFIG.BASE_URL}/videos/${encodeURIComponent(currentPreviewItem.filename)}`;
-            
+
             navigator.clipboard.writeText(url)
                 .then(() => showToast(translate('urlCopied'), 'success'))
                 .catch(err => {
                     console.error('Error copying URL: ', err);
-                    
+
                     const tempTextArea = document.createElement('textarea');
                     tempTextArea.value = url;
                     document.body.appendChild(tempTextArea);
@@ -669,6 +684,16 @@ function setupModalEvents() {
                 });
         }
     });
+
+    // Download all modal events
+    downloadAllCloseBtn.addEventListener('click', closeDownloadAllModal);
+    cancelDownloadBtn.addEventListener('click', closeDownloadAllModal);
+
+    downloadAllModal.addEventListener('click', e => {
+        if (e.target === downloadAllModal) closeDownloadAllModal();
+    });
+
+    confirmDownloadBtn.addEventListener('click', startDownloadAll);
 }
 
 function filterMediaItems(searchTerm) {
@@ -816,8 +841,140 @@ function hideLoadingOverlay() {
     document.getElementById('loading-overlay').style.display = 'none';
 }
 
+// Download all functionality
+async function showDownloadAllModal() {
+    const totalFiles = mediaFiles.images.length + mediaFiles.videos.length;
+    if (totalFiles === 0) {
+        showToast(translate('noItems', { type: translate('images').toLowerCase() + ' ' + translate('videos').toLowerCase() }), 'error');
+        return;
+    }
 
+    showToast(translate('downloadingAll'), 'info');
 
+    try {
+        const totalSize = await calculateTotalSize();
+        const sizeText = formatFileSize(totalSize);
+
+        const message = translate('downloadAllConfirm', {
+            count: totalFiles,
+            size: sizeText
+        });
+
+        document.getElementById('download-all-message').textContent = message;
+        document.getElementById('download-all-modal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Update button text
+        document.getElementById('confirm-download-btn').textContent = translate('confirmDownload');
+        document.getElementById('cancel-download-btn').textContent = translate('cancel');
+
+    } catch (error) {
+        console.error('Error calculating total size:', error);
+        showToast(translate('appError'), 'error');
+    }
+}
+
+function closeDownloadAllModal() {
+    document.getElementById('download-all-modal').style.display = 'none';
+    document.body.style.overflow = '';
+    hideDownloadProgress();
+}
+
+async function calculateTotalSize() {
+    const allFiles = [...mediaFiles.images, ...mediaFiles.videos];
+    let totalSize = 0;
+
+    // Get file details from GitHub API
+    for (const filename of allFiles) {
+        try {
+            const isImage = mediaFiles.images.includes(filename);
+            const folder = isImage ? 'images' : 'videos';
+
+            const response = await fetch(
+                `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${folder}/${encodeURIComponent(filename)}`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                totalSize += data.size || 0;
+            }
+        } catch (error) {
+            console.warn(`Could not get size for ${filename}:`, error);
+        }
+    }
+
+    return totalSize;
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+async function startDownloadAll() {
+    const allFiles = [
+        ...mediaFiles.images.map(filename => ({ filename, type: 'image' })),
+        ...mediaFiles.videos.map(filename => ({ filename, type: 'video' }))
+    ];
+
+    closeDownloadAllModal();
+    showDownloadProgress();
+
+    let downloaded = 0;
+    let failed = 0;
+
+    for (const file of allFiles) {
+        try {
+            const url = file.type === 'image'
+                ? `${CONFIG.BASE_URL}/images/${encodeURIComponent(file.filename)}`
+                : `${CONFIG.BASE_URL}/videos/${encodeURIComponent(file.filename)}`;
+
+            await downloadFile(url, file.filename, false);
+            downloaded++;
+
+            updateDownloadProgress(downloaded, allFiles.length, failed);
+
+        } catch (error) {
+            console.error(`Failed to download ${file.filename}:`, error);
+            failed++;
+            updateDownloadProgress(downloaded, allFiles.length, failed);
+        }
+    }
+
+    hideDownloadProgress();
+
+    if (failed === 0) {
+        showToast(translate('downloadAllComplete'), 'success');
+    } else if (downloaded > 0) {
+        showToast(translate('downloadAllFailed'), 'error');
+    } else {
+        showToast(translate('downloadFailed'), 'error');
+    }
+}
+
+function showDownloadProgress() {
+    document.getElementById('download-progress').style.display = 'block';
+    document.getElementById('confirm-download-btn').disabled = true;
+    document.getElementById('cancel-download-btn').disabled = true;
+}
+
+function hideDownloadProgress() {
+    document.getElementById('download-progress').style.display = 'none';
+    document.getElementById('confirm-download-btn').disabled = false;
+    document.getElementById('cancel-download-btn').disabled = false;
+}
+
+function updateDownloadProgress(current, total, failed) {
+    const progress = (current / total) * 100;
+    document.getElementById('progress-fill').style.width = `${progress}%`;
+    document.getElementById('progress-text').textContent = translate('downloadAllProgress', {
+        current: current + failed,
+        total
+    });
+}
 
 window.addEventListener('error', e => {
     console.error('Global error:', e.error);

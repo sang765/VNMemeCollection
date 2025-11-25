@@ -43,6 +43,7 @@
             <div class="top-button" id="button">
                 <button id="toggle-dark-mode">🌙</button>
                 <button id="refresh-btn">🔄</button>
+                <button id="download-all-btn" data-i18n-aria-label="downloadAll" aria-label="Download All">📦</button>
             </div>
             <div class="language-switcher">
                 <button id="language-toggle" aria-label="Switch language">
@@ -116,6 +117,26 @@
                     <span class="btn-icon">🔗</span>
                 </button>
                 <button id="next-btn" class="btn-nav" data-i18n-aria-label="next" aria-label="Next">→</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="download-all-modal" class="modal">
+        <div class="modal-content download-modal">
+            <button class="close" data-i18n-aria-label="close" aria-label="Close">&times;</button>
+            <h3 data-i18n="downloadAll">Download All</h3>
+            <div id="download-all-content">
+                <p id="download-all-message"></p>
+                <div class="download-progress" id="download-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text"></p>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="cancel-download-btn" class="btn-secondary" data-i18n="cancel">Cancel</button>
+                <button id="confirm-download-btn" class="btn-primary" data-i18n="confirmDownload">Confirm Download</button>
             </div>
         </div>
     </dialog>

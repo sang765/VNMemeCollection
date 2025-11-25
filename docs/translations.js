@@ -64,7 +64,17 @@ export const TRANSLATIONS = {
         
         // Buttons
         refresh: 'Làm mới',
-        search: 'Tìm kiếm'
+        search: 'Tìm kiếm',
+        downloadAll: 'Tải tất cả',
+
+        // Download all
+        downloadAllConfirm: 'Tải tất cả {count} meme? Tổng dung lượng: {size}',
+        downloadingAll: 'Đang tải tất cả meme...',
+        downloadAllProgress: 'Đã tải {current}/{total}',
+        downloadAllComplete: 'Đã tải xong tất cả',
+        downloadAllFailed: 'Một số tải thất bại',
+        confirmDownload: 'Xác nhận tải',
+        cancel: 'Hủy'
     },
     en: {
         // Header
@@ -121,6 +131,16 @@ export const TRANSLATIONS = {
         
         // Buttons
         refresh: 'Refresh',
-        search: 'Search'
+        search: 'Search',
+        downloadAll: 'Download All',
+
+        // Download all
+        downloadAllConfirm: 'Download all {count} memes? Total size: {size}',
+        downloadingAll: 'Downloading all memes...',
+        downloadAllProgress: 'Downloaded {current}/{total}',
+        downloadAllComplete: 'All downloads completed',
+        downloadAllFailed: 'Some downloads failed',
+        confirmDownload: 'Confirm Download',
+        cancel: 'Cancel'
     }
 };
